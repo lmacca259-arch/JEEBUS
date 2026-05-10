@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/brand/Header";
@@ -60,6 +61,7 @@ export default async function ChoresPage() {
       `id, name, cadence, day_hint, notes, pays_aud, default_assignee,
        member:members!default_assignee(id, name)`,
     )
+    .eq("is_active", true)
     .order("name");
 
   const chores = (rows as unknown as Chore[] | null) ?? [];
@@ -96,6 +98,14 @@ export default async function ChoresPage() {
         subtitle={`${chores.length} chores in rotation${
           memberName ? ` · ${myChores.length} on you` : ""
         }`}
+        rightSlot={
+          <Link
+            href="/chores/new"
+            className="rounded-xl bg-amber-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-950 hover:bg-amber-200"
+          >
+            + Add
+          </Link>
+        }
       />
 
       {memberName && myChores.length > 0 ? (
@@ -154,14 +164,15 @@ export default async function ChoresPage() {
                     ? memberStyle(c.member.name).accent
                     : "#94a3b8";
                   return (
-                    <li
-                      key={c.id}
-                      className={`flex items-start gap-3 rounded-2xl border bg-white/[0.04] p-3 transition ${
-                        isMine
-                          ? "border-amber-300/40"
-                          : "border-white/10"
-                      }`}
-                    >
+                    <li key={c.id}>
+                      <Link
+                        href={`/chores/${c.id}`}
+                        className={`flex items-start gap-3 rounded-2xl border bg-white/[0.04] p-3 transition hover:bg-white/[0.06] ${
+                          isMine
+                            ? "border-amber-300/40"
+                            : "border-white/10"
+                        }`}
+                      >
                       {c.member ? (
                         <Avatar name={c.member.name} size={36} />
                       ) : (
@@ -204,6 +215,7 @@ export default async function ChoresPage() {
                           </p>
                         ) : null}
                       </div>
+                      </Link>
                     </li>
                   );
                 })}
