@@ -22,13 +22,21 @@ export function ruleWarning(
 }
 
 export function planningWeekMonday(d: Date = new Date()): string {
-  // Returns ISO date (YYYY-MM-DD) for the Monday of the week containing d,
-  // computed in Australia/Melbourne so it matches the database view.
+  // Returns ISO date (YYYY-MM-DD) for the Monday of the "current planning week",
+  // computed in Australia/Melbourne so it matches the database.
+  //
+  // Rule: on Sunday we roll FORWARD to the upcoming Monday. The Saturday
+  // auto-planner has already drafted next week's plan, Mon delivery is
+  // tomorrow, and Lisa is mentally on next week — not the one ending today.
+  // Mon..Sat: roll back to this week's Monday.
   const localStr = d.toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" });
-  const local = new Date(localStr + "T00:00:00");
+  const local = new Date(localStr + "T00:00:00Z");
   const day = local.getUTCDay(); // 0 Sun .. 6 Sat
-  const offset = (day + 6) % 7; // distance back to Monday
-  local.setUTCDate(local.getUTCDate() - offset);
+  if (day === 0) {
+    local.setUTCDate(local.getUTCDate() + 1);
+  } else {
+    local.setUTCDate(local.getUTCDate() - (day - 1));
+  }
   return local.toISOString().slice(0, 10);
 }
 
