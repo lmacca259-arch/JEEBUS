@@ -105,6 +105,39 @@ export default async function Home({
   });
   const today = (rows as TodayRow[] | null) ?? [];
 
+  // Anyone on a shift starting today (Melbourne)?
+  const { data: shiftRows } = await supabase
+    .from("v_todays_shifts")
+    .select(
+      "shift_id, member_id, member_name, shift_type, starts_at, ends_at, is_last_in_block",
+    )
+    .order("starts_at");
+  const todaysShifts =
+    (shiftRows as
+      | {
+          shift_id: string;
+          member_id: string;
+          member_name: string;
+          shift_type: string;
+          starts_at: string;
+          ends_at: string;
+          is_last_in_block: boolean;
+        }[]
+      | null) ?? [];
+
+  // Next shift for the picked member (within the upcoming 14 days)
+  const inFourteenDays = new Date();
+  inFourteenDays.setDate(inFourteenDays.getDate() + 14);
+  const { data: upcomingShifts } = await supabase
+    .from("shifts")
+    .select("starts_at, is_last_in_block")
+    .eq("member_id", me.id)
+    .gt("starts_at", new Date().toISOString())
+    .lte("starts_at", inFourteenDays.toISOString())
+    .order("starts_at")
+    .limit(1);
+  const nextShift = upcomingShifts?.[0] ?? null;
+
   const myPending = today.filter((r) => r.is_for_me && r.status === "pending");
   const myDone = today.filter((r) => r.is_for_me && r.status === "done");
   const otherToday = today.filter((r) => !r.is_for_me);
@@ -124,6 +157,49 @@ export default async function Home({
           </form>
         }
       />
+
+      {todaysShifts.map((s) => {
+        const isMine = s.member_id === me.id;
+        const sleepEnd = s.is_last_in_block ? "2:30 PM" : "5:30 PM";
+        return (
+          <div
+            key={s.shift_id}
+            className={`mt-6 overflow-hidden rounded-2xl border px-4 py-3 ${
+              isMine
+                ? "border-rose-500/40 bg-rose-500/10"
+                : "border-white/10 bg-white/[0.04]"
+            }`}
+          >
+            <p className="text-[10px] uppercase tracking-[0.18em] text-rose-200/80">
+              🏥 Tonight
+            </p>
+            <p className="mt-0.5 font-display text-xl font-bold text-slate-50">
+              {isMine ? "You're" : `${s.member_name} is`} on {s.shift_type} ·{" "}
+              9 PM → 7:30 AM
+            </p>
+            <p className="mt-0.5 text-xs text-slate-300">
+              {isMine
+                ? `Early dinner around 6 PM. Sleep tomorrow 9 AM – ${sleepEnd}.`
+                : "Early dinner around 6 PM (before shift)."}
+              {s.is_last_in_block ? " Last night of block." : ""}
+            </p>
+          </div>
+        );
+      })}
+
+      {!todaysShifts.some((s) => s.member_id === me.id) && nextShift ? (
+        <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-slate-400">
+          🏥 Next shift:{" "}
+          <span className="text-slate-200">
+            {new Date(nextShift.starts_at).toLocaleDateString("en-AU", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              timeZone: "Australia/Melbourne",
+            })}
+          </span>
+        </p>
+      ) : null}
 
       {done ? (
         <p className="mt-6 rounded-xl border border-emerald-700/40 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-200">
