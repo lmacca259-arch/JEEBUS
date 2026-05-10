@@ -21,7 +21,15 @@ export const metadata: Metadata = {
   title: "HYETAS",
   description:
     "Have you ever seen a man throw a shoe — household load, lifted.",
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "HYETAS",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
