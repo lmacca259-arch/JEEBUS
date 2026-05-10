@@ -7,7 +7,6 @@ import { Mascot } from "@/components/brand/Mascot";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Avatar } from "@/components/brand/Avatar";
 import { Header } from "@/components/brand/Header";
-import { recipeStyle } from "@/lib/brand/recipeStyle";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +97,9 @@ export default async function Home({
   }
 
   /* -------------- Tonight view for the picked member -------------- */
+  // Make sure today's chores have been generated from the rotation. Idempotent.
+  await supabase.rpc("generate_assignments_for_today");
+
   const { data: rows } = await supabase.rpc("todays_assignments", {
     p_member_id: me.id,
   });
@@ -212,18 +214,27 @@ export default async function Home({
       {otherToday.length > 0 ? (
         <section className="mt-10 space-y-3">
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
-            Family today
+            On other people today
           </p>
           {otherToday.map((row) => {
-            const style = recipeStyle(row.chore_name);
             return (
               <div
                 key={row.assignment_id}
-                className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm"
+                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
+                  row.status === "done"
+                    ? "border-white/5 bg-white/[0.02] opacity-60"
+                    : "border-white/10 bg-white/[0.03]"
+                }`}
               >
                 <Avatar name={row.member_name} size={36} />
                 <div className="flex-1">
-                  <p className="text-slate-100">{row.chore_name}</p>
+                  <p
+                    className={`text-slate-100 ${
+                      row.status === "done" ? "line-through" : ""
+                    }`}
+                  >
+                    {row.chore_name}
+                  </p>
                   <p className="text-xs text-slate-500">
                     {row.member_name} ·{" "}
                     {row.status === "done"
@@ -231,9 +242,6 @@ export default async function Home({
                       : formatLocalTime(row.due_at)}
                   </p>
                 </div>
-                <span aria-hidden className="text-2xl opacity-60">
-                  {style.emoji}
-                </span>
               </div>
             );
           })}
