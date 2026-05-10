@@ -1,9 +1,12 @@
-import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { markDone } from "@/app/actions/done";
+import { pickMember } from "@/app/actions/whoami";
 import { formatLocalTime } from "@/lib/utils/time";
 
 export const dynamic = "force-dynamic";
+
+type Member = { id: string; name: string; role: string };
 
 type TodayRow = {
   assignment_id: string;
@@ -18,6 +21,19 @@ type TodayRow = {
   is_for_me: boolean;
 };
 
+// Display order: Lisa first (her app), then Andrew, then the kids.
+const PICKER_ORDER: Record<string, number> = {
+  Lisa: 0,
+  Andrew: 1,
+  Alex: 2,
+  Hannah: 3,
+};
+
+const ROLE_TINT: Record<string, string> = {
+  parent: "border-emerald-700/60 hover:border-emerald-400",
+  kid: "border-sky-700/60 hover:border-sky-400",
+};
+
 export default async function Home({
   searchParams,
 }: {
@@ -25,22 +41,61 @@ export default async function Home({
 }) {
   const { done, error } = await searchParams;
   const supabase = await createClient();
+  const cookieStore = await cookies();
+  const memberId = cookieStore.get("hyetas_member_id")?.value ?? null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Confirm this user has claimed a member.
-  const { data: me } = await supabase
+  // Always load the family — needed for both the picker and the header.
+  const { data: members } = await supabase
     .from("members")
-    .select("id, name, household_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!me) redirect("/claim");
+    .select("id, name, role");
 
-  // Today's assignments for this household.
-  const { data: rows } = await supabase.rpc("todays_assignments");
+  const family: Member[] = (members ?? []).slice().sort((a, b) => {
+    const ai = PICKER_ORDER[a.name] ?? 99;
+    const bi = PICKER_ORDER[b.name] ?? 99;
+    return ai - bi;
+  });
+
+  const me = memberId ? family.find((m) => m.id === memberId) : null;
+
+  // ----- Picker (no cookie yet, or cookie points at a stale member) -----
+  if (!me) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-12">
+        <header>
+          <h1 className="text-3xl font-semibold tracking-tight">HYETAS</h1>
+          <p className="mt-1 text-sm text-slate-400">Who&apos;s on this device?</p>
+        </header>
+
+        <section className="mt-12 grid grid-cols-2 gap-3">
+          {family.map((m) => (
+            <form key={m.id} action={pickMember}>
+              <input type="hidden" name="member_id" value={m.id} />
+              <button
+                type="submit"
+                className={`w-full rounded-2xl border bg-slate-900 px-5 py-8 text-left transition ${
+                  ROLE_TINT[m.role] ?? "border-slate-800 hover:border-slate-500"
+                }`}
+              >
+                <p className="text-2xl font-semibold">{m.name}</p>
+                <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  {m.role}
+                </p>
+              </button>
+            </form>
+          ))}
+        </section>
+
+        <p className="mt-auto pt-12 text-[10px] uppercase tracking-wider text-slate-600">
+          the system asks. you don&apos;t have to.
+        </p>
+      </main>
+    );
+  }
+
+  // ----- Tonight view for the picked member -----
+  const { data: rows } = await supabase.rpc("todays_assignments", {
+    p_member_id: me.id,
+  });
   const today = (rows as TodayRow[] | null) ?? [];
 
   const myPending = today.filter((r) => r.is_for_me && r.status === "pending");
@@ -53,7 +108,7 @@ export default async function Home({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">HYETAS</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Hi, {me.name}. The system is asking — not you.
+            Hi, {me.name}. The system is asking — not Lisa.
           </p>
         </div>
         <form action="/auth/signout" method="post">
@@ -61,7 +116,7 @@ export default async function Home({
             type="submit"
             className="text-[10px] uppercase tracking-wider text-slate-600 hover:text-slate-400"
           >
-            Sign out
+            Switch user
           </button>
         </form>
       </header>

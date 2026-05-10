@@ -1,37 +1,6 @@
 "use server";
+// Retired with the password-auth flow. Kept as no-op stubs so old imports don't
+// break the build. Will be removed in a future cleanup pass.
 
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-
-export async function login(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  }
-
-  revalidatePath("/", "layout");
-  redirect("/");
-}
-
-export async function signup(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
-
-  if (error) {
-    redirect(
-      `/login?mode=signup&error=${encodeURIComponent(error.message)}`,
-    );
-  }
-
-  revalidatePath("/", "layout");
-  redirect("/");
-}
+export async function login(_formData: FormData) {}
+export async function signup(_formData: FormData) {}
