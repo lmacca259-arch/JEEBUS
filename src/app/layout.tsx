@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
+import { BottomNav } from "@/components/nav/BottomNav";
 
 export const metadata: Metadata = {
   title: "HYETAS",
@@ -12,13 +14,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Only render the bottom nav once a member has been picked.
+  const c = await cookies();
+  const hasMember = Boolean(c.get("hyetas_member_id")?.value);
+
   return (
     <html lang="en">
       <body className="min-h-dvh bg-slate-950 text-slate-100 antialiased">
-        {children}
+        <div className={hasMember ? "pb-20" : ""}>{children}</div>
+        {hasMember ? <BottomNav /> : null}
       </body>
     </html>
   );
