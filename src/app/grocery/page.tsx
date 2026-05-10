@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { toggleGotIt } from "@/app/actions/grocery";
 import { planningWeekMonday } from "@/lib/utils/rules";
+import { Header } from "@/components/brand/Header";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,18 @@ const AISLE_ORDER = [
   "Other",
 ];
 
+const AISLE_EMOJI: Record<string, string> = {
+  Produce: "🥬",
+  Protein: "🍗",
+  "Dairy & Eggs": "🥛",
+  Bakery: "🍞",
+  Pantry: "🥫",
+  Frozen: "🧊",
+  Beverages: "🥤",
+  Household: "🧴",
+  Other: "🛒",
+};
+
 export default async function GroceryPage() {
   const supabase = await createClient();
   const monday = planningWeekMonday();
@@ -46,7 +59,6 @@ export default async function GroceryPage() {
 
   const items = (rows as Item[] | null) ?? [];
 
-  // Group by aisle in our preferred order
   const byAisle = new Map<string, Item[]>();
   for (const it of items) {
     const a = it.aisle ?? "Other";
@@ -58,7 +70,6 @@ export default async function GroceryPage() {
     ...[...byAisle.keys()].filter((a) => !AISLE_ORDER.includes(a)),
   ];
 
-  // Totals from priced items only
   const colesTotal = items.reduce((s, i) => s + (i.coles_price ?? 0), 0);
   const wooliesTotal = items.reduce((s, i) => s + (i.woolies_price ?? 0), 0);
   const bestTotal = items.reduce((s, i) => s + (i.best_price ?? 0), 0);
@@ -67,19 +78,18 @@ export default async function GroceryPage() {
   const checkedCount = items.filter((i) => i.got_it).length;
 
   return (
-    <main className="mx-auto max-w-md px-6 pb-8 pt-12">
-      <header className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Grocery list</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Week of {fmt(monday)} · {checkedCount} of {totalCount} ticked
-          </p>
-        </div>
-      </header>
+    <main className="mx-auto max-w-md px-6 pt-10 pb-8">
+      <Header subtitle={`Week of ${fmt(monday)} · ${checkedCount} of ${totalCount} ticked`} />
 
       {pricedCount > 0 ? (
-        <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+        <section
+          className="mt-6 overflow-hidden rounded-3xl border border-white/10 p-4"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(251,191,36,0.18), rgba(251,113,133,0.10))",
+          }}
+        >
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/80">
             Priced ({pricedCount} items)
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -90,13 +100,14 @@ export default async function GroceryPage() {
         </section>
       ) : null}
 
-      <section className="mt-6 space-y-6">
+      <section className="mt-6 space-y-7">
         {orderedAisles.map((aisle) => (
           <div key={aisle}>
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+            <h2 className="flex items-center gap-2 text-sm font-display font-bold uppercase tracking-[0.16em] text-slate-300">
+              <span aria-hidden>{AISLE_EMOJI[aisle] ?? "🛒"}</span>
               {aisle}
             </h2>
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 space-y-1.5">
               {byAisle.get(aisle)!.map((it) => (
                 <li key={it.id}>
                   <form action={toggleGotIt}>
@@ -108,14 +119,14 @@ export default async function GroceryPage() {
                     />
                     <button
                       type="submit"
-                      className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
                         it.got_it
-                          ? "border-slate-800/60 bg-slate-900/40 text-slate-500"
-                          : "border-slate-800 bg-slate-900 hover:border-emerald-600"
+                          ? "border-white/5 bg-white/[0.02] text-slate-500"
+                          : "border-white/10 bg-white/[0.04] hover:border-amber-500/50"
                       }`}
                     >
                       <span
-                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
                           it.got_it
                             ? "border-emerald-500 bg-emerald-500 text-slate-950"
                             : "border-slate-600"
@@ -134,7 +145,7 @@ export default async function GroceryPage() {
                             {it.item}
                           </span>
                           {it.is_standing ? (
-                            <span className="text-[10px] uppercase tracking-wider text-amber-400">
+                            <span className="text-[10px] uppercase tracking-wider text-amber-300">
                               standing
                             </span>
                           ) : null}
@@ -151,7 +162,7 @@ export default async function GroceryPage() {
                         ) : null}
                         {priceLine(it)}
                         {it.notes ? (
-                          <span className="mt-0.5 block text-[11px] text-amber-400/80">
+                          <span className="mt-0.5 block text-[11px] text-amber-300/80">
                             {it.notes}
                           </span>
                         ) : null}
@@ -183,7 +194,7 @@ function priceLine(it: Item) {
   return (
     <span className="block text-[11px] text-slate-500">
       Coles {c} · Woolies {w}
-      {winner ? <span className="ml-2 text-emerald-400">{winner}</span> : null}
+      {winner ? <span className="ml-2 text-amber-300">{winner}</span> : null}
     </span>
   );
 }
@@ -199,18 +210,16 @@ function Total({
 }) {
   return (
     <div
-      className={`rounded-lg border px-2 py-2 ${
+      className={`rounded-xl border px-2 py-2 ${
         winner
-          ? "border-emerald-500/60 bg-emerald-900/20"
-          : "border-slate-800 bg-slate-950"
+          ? "border-emerald-400/60 bg-emerald-900/20"
+          : "border-white/10 bg-black/20"
       }`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-slate-500">
-        {label}
-      </p>
+      <p className="text-[10px] uppercase tracking-wider text-slate-400">{label}</p>
       <p
-        className={`mt-1 text-base font-semibold ${
-          winner ? "text-emerald-300" : "text-slate-200"
+        className={`mt-1 font-display text-xl font-bold ${
+          winner ? "text-emerald-300" : "text-slate-100"
         }`}
       >
         ${amount.toFixed(2)}

@@ -3,6 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { markDone } from "@/app/actions/done";
 import { pickMember } from "@/app/actions/whoami";
 import { formatLocalTime } from "@/lib/utils/time";
+import { Mascot } from "@/components/brand/Mascot";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { Avatar } from "@/components/brand/Avatar";
+import { Header } from "@/components/brand/Header";
+import { recipeStyle } from "@/lib/brand/recipeStyle";
 
 export const dynamic = "force-dynamic";
 
@@ -21,17 +26,11 @@ type TodayRow = {
   is_for_me: boolean;
 };
 
-// Display order: Lisa first (her app), then Andrew, then the kids.
 const PICKER_ORDER: Record<string, number> = {
   Lisa: 0,
   Andrew: 1,
   Alex: 2,
   Hannah: 3,
-};
-
-const ROLE_TINT: Record<string, string> = {
-  parent: "border-emerald-700/60 hover:border-emerald-400",
-  kid: "border-sky-700/60 hover:border-sky-400",
 };
 
 export default async function Home({
@@ -44,7 +43,6 @@ export default async function Home({
   const cookieStore = await cookies();
   const memberId = cookieStore.get("hyetas_member_id")?.value ?? null;
 
-  // Always load the family — needed for both the picker and the header.
   const { data: members } = await supabase
     .from("members")
     .select("id, name, role");
@@ -57,42 +55,49 @@ export default async function Home({
 
   const me = memberId ? family.find((m) => m.id === memberId) : null;
 
-  // ----- Picker (no cookie yet, or cookie points at a stale member) -----
+  /* -------------- Picker (no cookie / unknown member) -------------- */
   if (!me) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-12">
-        <header>
-          <h1 className="text-3xl font-semibold tracking-tight">HYETAS</h1>
-          <p className="mt-1 text-sm text-slate-400">Who&apos;s on this device?</p>
-        </header>
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-10 pb-12">
+        <div className="flex flex-col items-center text-center">
+          <Mascot size={120} />
+          <Wordmark size="xl" className="mt-2" />
+          <p className="mt-1 text-base text-slate-300">
+            Have you ever seen a man throw a shoe.
+          </p>
+          <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+            Who&apos;s on this device?
+          </p>
+        </div>
 
-        <section className="mt-12 grid grid-cols-2 gap-3">
+        <section className="mt-6 grid grid-cols-2 gap-3">
           {family.map((m) => (
             <form key={m.id} action={pickMember}>
               <input type="hidden" name="member_id" value={m.id} />
               <button
                 type="submit"
-                className={`w-full rounded-2xl border bg-slate-900 px-5 py-8 text-left transition ${
-                  ROLE_TINT[m.role] ?? "border-slate-800 hover:border-slate-500"
-                }`}
+                className="flex w-full flex-col items-center gap-3 rounded-3xl border border-white/10 bg-white/[0.04] px-4 py-6 transition hover:bg-white/[0.08]"
               >
-                <p className="text-2xl font-semibold">{m.name}</p>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <Avatar name={m.name} size={72} />
+                <span className="text-2xl font-display font-bold text-slate-100">
+                  {m.name}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
                   {m.role}
-                </p>
+                </span>
               </button>
             </form>
           ))}
         </section>
 
-        <p className="mt-auto pt-12 text-[10px] uppercase tracking-wider text-slate-600">
+        <p className="mt-auto pt-12 text-center text-[10px] uppercase tracking-wider text-slate-600">
           the system asks. you don&apos;t have to.
         </p>
       </main>
     );
   }
 
-  // ----- Tonight view for the picked member -----
+  /* -------------- Tonight view for the picked member -------------- */
   const { data: rows } = await supabase.rpc("todays_assignments", {
     p_member_id: me.id,
   });
@@ -103,26 +108,23 @@ export default async function Home({
   const otherToday = today.filter((r) => !r.is_for_me);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-12">
-      <header className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">HYETAS</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Hi, {me.name}. The system is asking — not Lisa.
-          </p>
-        </div>
-        <form action="/auth/signout" method="post">
-          <button
-            type="submit"
-            className="text-[10px] uppercase tracking-wider text-slate-600 hover:text-slate-400"
-          >
-            Switch user
-          </button>
-        </form>
-      </header>
+    <main className="mx-auto max-w-md px-6 pt-10 pb-8">
+      <Header
+        subtitle={`Hi, ${me.name}. The system is asking — not you.`}
+        rightSlot={
+          <form action="/auth/signout" method="post">
+            <button
+              type="submit"
+              className="text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300"
+            >
+              Switch user
+            </button>
+          </form>
+        }
+      />
 
       {done ? (
-        <p className="mt-6 rounded-xl border border-emerald-700/40 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-300">
+        <p className="mt-6 rounded-xl border border-emerald-700/40 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-200">
           Logged. Receipt is in.
         </p>
       ) : null}
@@ -141,57 +143,66 @@ export default async function Home({
         </p>
 
         {myPending.length === 0 && myDone.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-400">
-            Nothing on your plate. Sit on a couch.
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+            <span className="mr-2">🛋️</span>Nothing on your plate. Sit on a couch.
           </div>
         ) : null}
 
         {myPending.map((row) => (
           <article
             key={row.assignment_id}
-            className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg"
+            className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-lg"
           >
-            <p className="text-xl font-medium">{row.chore_name}</p>
-            <p className="mt-1 text-sm text-slate-400">
-              {row.member_name} · {formatLocalTime(row.due_at)}
-            </p>
-
-            {row.chore_instructions_md ? (
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-emerald-400 hover:text-emerald-300">
-                  How to (tap to open)
-                </summary>
-                <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-300">
-                  {row.chore_instructions_md}
-                </pre>
-              </details>
-            ) : null}
-
-            <form action={markDone} className="mt-6">
-              <input
-                type="hidden"
-                name="assignment_id"
-                value={row.assignment_id}
-              />
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-medium text-slate-950 transition hover:bg-emerald-400"
-              >
-                Done
-              </button>
-            </form>
+            <div
+              className="px-6 pt-5 pb-4"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(251,191,36,0.18), rgba(251,113,133,0.10))",
+              }}
+            >
+              <p className="text-[10px] uppercase tracking-[0.20em] text-amber-300/90">
+                Tonight
+              </p>
+              <p className="mt-1 font-display text-3xl font-bold text-slate-50">
+                {row.chore_name}
+              </p>
+              <p className="mt-1 text-sm text-slate-300">
+                {row.member_name} · {formatLocalTime(row.due_at)}
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              {row.chore_instructions_md ? (
+                <details className="mb-5 group">
+                  <summary className="cursor-pointer text-sm font-medium text-amber-300/90 group-open:text-amber-200">
+                    How to (tap to open)
+                  </summary>
+                  <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-300">
+                    {row.chore_instructions_md}
+                  </pre>
+                </details>
+              ) : null}
+              <form action={markDone}>
+                <input type="hidden" name="assignment_id" value={row.assignment_id} />
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-emerald-500 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                >
+                  Done — show me the photo
+                </button>
+              </form>
+            </div>
           </article>
         ))}
 
         {myDone.map((row) => (
           <article
             key={row.assignment_id}
-            className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 opacity-70"
+            className="rounded-3xl border border-white/5 bg-white/[0.02] px-6 py-4 opacity-70"
           >
             <p className="text-base font-medium line-through decoration-emerald-500/60">
               {row.chore_name}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-emerald-500">
+            <p className="mt-1 text-xs uppercase tracking-wider text-emerald-400">
               Done ✓
             </p>
           </article>
@@ -203,22 +214,33 @@ export default async function Home({
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
             Family today
           </p>
-          {otherToday.map((row) => (
-            <div
-              key={row.assignment_id}
-              className="rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3 text-sm"
-            >
-              <span className="text-slate-100">{row.chore_name}</span>
-              <span className="ml-2 text-slate-500">
-                {row.member_name} ·{" "}
-                {row.status === "done" ? "done ✓" : formatLocalTime(row.due_at)}
-              </span>
-            </div>
-          ))}
+          {otherToday.map((row) => {
+            const style = recipeStyle(row.chore_name);
+            return (
+              <div
+                key={row.assignment_id}
+                className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm"
+              >
+                <Avatar name={row.member_name} size={36} />
+                <div className="flex-1">
+                  <p className="text-slate-100">{row.chore_name}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.member_name} ·{" "}
+                    {row.status === "done"
+                      ? "done ✓"
+                      : formatLocalTime(row.due_at)}
+                  </p>
+                </div>
+                <span aria-hidden className="text-2xl opacity-60">
+                  {style.emoji}
+                </span>
+              </div>
+            );
+          })}
         </section>
       ) : null}
 
-      <p className="mt-auto pt-12 text-[10px] uppercase tracking-wider text-slate-600">
+      <p className="mt-12 text-center text-[10px] uppercase tracking-wider text-slate-600">
         the system asks. you don&apos;t have to.
       </p>
     </main>

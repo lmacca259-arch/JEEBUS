@@ -2,12 +2,15 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ruleWarning, planningWeekMonday } from "@/lib/utils/rules";
+import { Header } from "@/components/brand/Header";
+import { recipeStyle } from "@/lib/brand/recipeStyle";
 
 export const dynamic = "force-dynamic";
 
 type RecipeRef = {
   id: string;
   name: string;
+  cuisine: string | null;
   contains: string[] | null;
   is_kid_favourite: boolean;
 };
@@ -56,9 +59,9 @@ export default async function MealsPage() {
     .from("meal_plan_days")
     .select(
       `id, day_date, eating_at_home, snacks_notes,
-       breakfast:recipes!breakfast_recipe_id(id, name, contains, is_kid_favourite),
-       lunch:recipes!lunch_recipe_id(id, name, contains, is_kid_favourite),
-       dinner:recipes!dinner_recipe_id(id, name, contains, is_kid_favourite)`,
+       breakfast:recipes!breakfast_recipe_id(id, name, cuisine, contains, is_kid_favourite),
+       lunch:recipes!lunch_recipe_id(id, name, cuisine, contains, is_kid_favourite),
+       dinner:recipes!dinner_recipe_id(id, name, cuisine, contains, is_kid_favourite)`,
     )
     .gte("day_date", monday)
     .lte("day_date", sunday)
@@ -67,13 +70,8 @@ export default async function MealsPage() {
   const days = (rows as unknown as DayRow[] | null) ?? [];
 
   return (
-    <main className="mx-auto max-w-md px-6 pb-8 pt-12">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">This week</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          {fmt(monday)} – {fmt(sunday)}
-        </p>
-      </header>
+    <main className="mx-auto max-w-md px-6 pt-10 pb-8">
+      <Header subtitle={`This week — ${fmt(monday)} to ${fmt(sunday)}`} />
 
       {error ? (
         <p className="mt-6 rounded-xl border border-rose-700/40 bg-rose-900/30 px-4 py-3 text-sm text-rose-300">
@@ -82,38 +80,62 @@ export default async function MealsPage() {
       ) : null}
 
       {days.length === 0 ? (
-        <p className="mt-12 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-400">
+        <p className="mt-12 rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-sm text-slate-400">
           No meals planned for this week yet. The Saturday auto-planner will fill
           this in next time it runs.
         </p>
       ) : (
-        <ol className="mt-8 space-y-4">
+        <ol className="mt-8 space-y-5">
           {days.map((d) => (
             <li
               key={d.id}
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-5"
+              className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"
             >
-              <div className="flex items-baseline justify-between">
-                <p className="text-base font-semibold">
-                  {dayName(d.day_date)}
-                </p>
-                <p className="text-xs text-slate-500">{shortDate(d.day_date)}</p>
+              <DayHero day={d} />
+              <div className="px-5 pt-3 pb-5">
+                <ul className="space-y-2 text-sm">
+                  <MealRow label="Breakfast" r={d.breakfast} member={memberName} />
+                  <MealRow label="Lunch" r={d.lunch} member={memberName} />
+                  <MealRow label="Dinner" r={d.dinner} member={memberName} />
+                </ul>
+                {d.snacks_notes ? (
+                  <p className="mt-3 border-t border-white/5 pt-3 text-xs text-slate-400">
+                    {d.snacks_notes}
+                  </p>
+                ) : null}
               </div>
-              <ul className="mt-3 space-y-2 text-sm">
-                <MealRow label="Breakfast" r={d.breakfast} member={memberName} />
-                <MealRow label="Lunch" r={d.lunch} member={memberName} />
-                <MealRow label="Dinner" r={d.dinner} member={memberName} />
-              </ul>
-              {d.snacks_notes ? (
-                <p className="mt-3 border-t border-slate-800 pt-3 text-xs text-slate-400">
-                  {d.snacks_notes}
-                </p>
-              ) : null}
             </li>
           ))}
         </ol>
       )}
     </main>
+  );
+}
+
+function DayHero({ day }: { day: DayRow }) {
+  const featured = day.dinner ?? day.lunch ?? day.breakfast;
+  const style = featured
+    ? recipeStyle(featured.name, featured.cuisine)
+    : { gradient: "linear-gradient(135deg,#475569,#fbbf24)", emoji: "🍽" };
+  return (
+    <div className="relative h-24 overflow-hidden" style={{ background: style.gradient }}>
+      <span
+        aria-hidden
+        className="absolute -right-3 -top-3 select-none"
+        style={{ fontSize: 96, lineHeight: 1, filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.25))" }}
+      >
+        {style.emoji}
+      </span>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+      <div className="absolute bottom-3 left-5 right-5 flex items-baseline justify-between text-white">
+        <span className="font-display text-2xl font-bold drop-shadow">
+          {dayName(day.day_date)}
+        </span>
+        <span className="text-xs uppercase tracking-wider opacity-90">
+          {shortDate(day.day_date)}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -137,6 +159,7 @@ function MealRow({
     );
   }
   const warn = ruleWarning(r.contains, member);
+  const { emoji } = recipeStyle(r.name, r.cuisine);
   return (
     <li className="flex items-baseline gap-3">
       <span className="w-20 text-[10px] uppercase tracking-[0.16em] text-slate-500">
@@ -147,6 +170,9 @@ function MealRow({
           href={`/recipes/${r.id}`}
           className="text-slate-100 underline-offset-2 hover:underline"
         >
+          <span className="mr-1.5" aria-hidden>
+            {emoji}
+          </span>
           {r.name}
         </Link>
         {r.is_kid_favourite ? (
@@ -155,7 +181,7 @@ function MealRow({
           </span>
         ) : null}
         {warn ? (
-          <span className="mt-0.5 block text-[11px] text-amber-400">⚠ {warn}</span>
+          <span className="mt-0.5 block text-[11px] text-amber-300">⚠ {warn}</span>
         ) : null}
       </span>
     </li>

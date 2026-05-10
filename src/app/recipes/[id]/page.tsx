@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ruleWarning } from "@/lib/utils/rules";
+import { RecipeHero } from "@/components/brand/RecipeHero";
 
 export const dynamic = "force-dynamic";
 
@@ -53,16 +54,22 @@ export default async function RecipeDetailPage({
   const warn = ruleWarning(recipe.contains, memberName);
 
   return (
-    <main className="mx-auto max-w-md px-6 pb-8 pt-12">
-      <Link
-        href="/recipes"
-        className="text-[10px] uppercase tracking-[0.18em] text-slate-500 hover:text-slate-300"
-      >
-        ← Recipes
-      </Link>
+    <main className="mx-auto max-w-md pb-8">
+      <RecipeHero name={recipe.name} cuisine={recipe.cuisine} height={220} />
 
-      <header className="mt-4">
-        <h1 className="text-3xl font-semibold tracking-tight">{recipe.name}</h1>
+      <div className="px-6 -mt-12 relative z-10">
+        <Link
+          href="/recipes"
+          className="inline-block text-[10px] uppercase tracking-[0.18em] text-white drop-shadow hover:text-amber-200"
+        >
+          ← Recipes
+        </Link>
+      </div>
+
+      <header className="px-6 mt-6">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-slate-50">
+          {recipe.name}
+        </h1>
         <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">
           {[
             recipe.cuisine,
@@ -88,46 +95,46 @@ export default async function RecipeDetailPage({
       </header>
 
       {warn ? (
-        <p className="mt-6 rounded-xl border border-amber-700/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-300">
+        <p className="mx-6 mt-6 rounded-xl border border-amber-700/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">
           ⚠ {warn}
         </p>
       ) : null}
 
       {recipe.notes ? (
-        <p className="mt-6 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+        <p className="mx-6 mt-6 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
           {recipe.notes}
         </p>
       ) : null}
 
       {recipe.ingredients_md ? (
-        <section className="mt-8">
+        <section className="px-6 mt-8">
           <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
             Ingredients
           </h2>
-          <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-200 font-sans">
+          <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-200 font-body">
             {recipe.ingredients_md}
           </pre>
         </section>
       ) : null}
 
       {recipe.instructions_md ? (
-        <section className="mt-8">
+        <section className="px-6 mt-8">
           <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
             Steps
           </h2>
-          <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-200 font-sans">
+          <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-200 font-body">
             {recipe.instructions_md}
           </pre>
         </section>
       ) : null}
 
       {recipe.source_url ? (
-        <p className="mt-8 text-xs text-slate-500">
+        <p className="px-6 mt-8 text-xs text-slate-500">
           <a
             href={recipe.source_url}
             target="_blank"
             rel="noreferrer"
-            className="text-emerald-400 hover:text-emerald-300"
+            className="text-amber-300 hover:text-amber-200"
           >
             Source ↗
           </a>

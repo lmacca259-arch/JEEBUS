@@ -2,6 +2,8 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ruleWarning } from "@/lib/utils/rules";
+import { Header } from "@/components/brand/Header";
+import { RecipeHero } from "@/components/brand/RecipeHero";
 
 export const dynamic = "force-dynamic";
 
@@ -42,42 +44,36 @@ export default async function RecipesPage() {
   const recipes = (rows as Recipe[] | null) ?? [];
 
   return (
-    <main className="mx-auto max-w-md px-6 pb-8 pt-12">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Recipes</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          {recipes.length} in the cookbook · all peanut-free
-        </p>
-      </header>
+    <main className="mx-auto max-w-md px-6 pt-10 pb-8">
+      <Header subtitle={`${recipes.length} in the cookbook · all peanut-free`} />
 
-      <ul className="mt-8 space-y-2">
+      <ul className="mt-8 grid grid-cols-2 gap-3">
         {recipes.map((r) => {
           const warn = ruleWarning(r.contains, memberName);
           return (
             <li key={r.id}>
               <Link
                 href={`/recipes/${r.id}`}
-                className="block rounded-2xl border border-slate-800 bg-slate-900 px-5 py-4 transition hover:border-emerald-600"
+                className="block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition hover:border-amber-500/60"
               >
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-base font-medium">
+                <RecipeHero name={r.name} cuisine={r.cuisine} height={110} />
+                <div className="p-3">
+                  <p className="line-clamp-2 text-sm font-semibold text-slate-100">
                     {r.name}
                     {r.is_kid_favourite ? (
-                      <span className="ml-2 align-middle text-[10px]" aria-label="kids' favourite">
+                      <span className="ml-1 align-middle text-[10px]" aria-label="kids' favourite">
                         ⭐
                       </span>
                     ) : null}
                   </p>
-                  {r.prep_time_min ? (
-                    <p className="text-xs text-slate-500">{r.prep_time_min} min</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                    {r.cuisine}
+                    {r.prep_time_min ? ` · ${r.prep_time_min}m` : ""}
+                  </p>
+                  {warn ? (
+                    <p className="mt-1.5 text-[10px] text-amber-300">⚠ {warn}</p>
                   ) : null}
                 </div>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                  {[r.cuisine, ...(r.meal_types ?? [])].filter(Boolean).join(" · ")}
-                </p>
-                {warn ? (
-                  <p className="mt-2 text-[11px] text-amber-400">⚠ {warn}</p>
-                ) : null}
               </Link>
             </li>
           );

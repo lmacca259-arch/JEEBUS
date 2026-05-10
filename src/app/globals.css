@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+@theme {
+  --font-body: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), "Caveat", "Comic Sans MS", cursive;
+}
+
+/* Warm, slightly playful dark background — base slate, hint of amber + rose
+   glows in the corners so the screen never looks dead. */
+.hyetas-bg {
+  background-color: #0b1220;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.10), transparent 38%),
+    radial-gradient(circle at 95% 18%, rgba(251, 113, 133, 0.10), transparent 35%),
+    radial-gradient(circle at 50% 110%, rgba(56, 189, 248, 0.08), transparent 45%);
+  background-attachment: fixed;
+}
+
+/* Tailwind v4 in this project doesn't have arbitrary `font-display` shortcut
+   wired automatically — alias it explicitly for readability in JSX. */
+.font-display {
+  font-family: var(--font-display);
+}
+.font-body {
+  font-family: var(--font-body);
+}
