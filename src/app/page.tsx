@@ -187,9 +187,15 @@ export default async function Home({
                 <input type="hidden" name="assignment_id" value={row.assignment_id} />
                 <button
                   type="submit"
-                  className="w-full rounded-2xl bg-emerald-500 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                  className="flex w-full items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 px-4 py-3.5 text-left transition hover:border-emerald-400 hover:bg-emerald-500/15"
                 >
-                  Done — show me the photo
+                  <span
+                    aria-hidden
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 border-emerald-500"
+                  />
+                  <span className="text-sm font-semibold text-emerald-200">
+                    Mark complete
+                  </span>
                 </button>
               </form>
             </div>
@@ -199,14 +205,22 @@ export default async function Home({
         {myDone.map((row) => (
           <article
             key={row.assignment_id}
-            className="rounded-3xl border border-white/5 bg-white/[0.02] px-6 py-4 opacity-70"
+            className="flex items-center gap-3 rounded-3xl border border-white/5 bg-white/[0.02] px-5 py-4 opacity-70"
           >
-            <p className="text-base font-medium line-through decoration-emerald-500/60">
-              {row.chore_name}
-            </p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-emerald-400">
-              Done ✓
-            </p>
+            <span
+              aria-hidden
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 border-emerald-500 bg-emerald-500 text-slate-950"
+            >
+              ✓
+            </span>
+            <div className="flex-1">
+              <p className="text-base font-medium text-slate-200 line-through decoration-emerald-500/60">
+                {row.chore_name}
+              </p>
+              <p className="mt-0.5 text-xs uppercase tracking-wider text-emerald-400">
+                Done
+              </p>
+            </div>
           </article>
         ))}
       </section>
