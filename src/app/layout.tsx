@@ -33,14 +33,17 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const c = await cookies();
-  const hasMember = Boolean(c.get("hyetas_member_id")?.value);
+  // Read cookie just to keep the original "show nav once a member is picked"
+  // signal available if we need it later — but the nav now renders always so
+  // the user can never feel "stuck" the way Lisa described after hitting
+  // Switch user.
+  await cookies();
 
   return (
     <html lang="en" className={`${inter.variable} ${caveat.variable}`}>
       <body className="min-h-dvh font-body text-slate-100 antialiased hyetas-bg">
-        <div className={hasMember ? "pb-20" : ""}>{children}</div>
-        {hasMember ? <BottomNav /> : null}
+        <div className="pb-24">{children}</div>
+        <BottomNav />
       </body>
     </html>
   );
