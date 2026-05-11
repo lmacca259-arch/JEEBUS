@@ -27,21 +27,14 @@ export type SubscriptionRow = {
   auth: string;
 };
 
+// Loose type for the Supabase client — using the full @supabase/ssr return type
+// here causes "Type instantiation is excessively deep" during `next build`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseLike = any;
+
 /** Send to all subscriptions for a member. Returns {sent, removed}. */
 export async function pushToMember(
-  supabase: {
-    from: (t: string) => {
-      select: (cols: string) => {
-        eq: (
-          col: string,
-          val: string,
-        ) => Promise<{ data: SubscriptionRow[] | null; error: unknown }>;
-      };
-      delete: () => {
-        eq: (col: string, val: string) => Promise<{ error: unknown }>;
-      };
-    };
-  },
+  supabase: SupabaseLike,
   memberId: string,
   payload: PushPayload,
 ): Promise<{ sent: number; removed: number }> {
