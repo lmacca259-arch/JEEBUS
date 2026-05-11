@@ -1,3 +1,4 @@
+// HYETAS Tonight page — auto-generates today's chores + shows shift banner.
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { markDone } from "@/app/actions/done";
