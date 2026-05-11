@@ -37,6 +37,22 @@ export function EnableNotifications({ memberId, memberName }: Props) {
       if (!reg) return;
       const existing = await reg.pushManager.getSubscription();
       if (existing && Notification.permission === "granted") {
+        // Self-heal: re-POST the subscription to the server every page load
+        // so a previously-failed save catches up. UPSERT on the server keeps
+        // this idempotent.
+        try {
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              member_id: memberId,
+              subscription: existing.toJSON(),
+              user_agent: navigator.userAgent,
+            }),
+          });
+        } catch {
+          /* silent — banner will still show as enabled */
+        }
         setStatus("enabled");
       }
     });
