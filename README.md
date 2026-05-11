@@ -27,3 +27,4 @@ Bins on the curb Sunday night. Not cheerful Alex. Not happy Lisa. Just: bins out
 ## Notes
 
 Web push notifications: enabled via VAPID + service worker (slice 8).
+Cron schedule: every 30 minutes (Hobby plan friendly).
