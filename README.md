@@ -23,3 +23,7 @@ Then open http://localhost:3000.
 ## Win condition for Test #1
 
 Bins on the curb Sunday night. Not cheerful Alex. Not happy Lisa. Just: bins out.
+
+## Notes
+
+Web push notifications: enabled via VAPID + service worker (slice 8).
