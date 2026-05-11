@@ -7,7 +7,6 @@ import { Mascot } from "@/components/brand/Mascot";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Avatar } from "@/components/brand/Avatar";
 import { Header } from "@/components/brand/Header";
-import { EnableNotifications } from "@/components/push/EnableNotifications";
 
 export const dynamic = "force-dynamic";
 
@@ -338,16 +337,6 @@ export default async function Home({
           })}
         </section>
       ) : null}
-
-      <section className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-          On this device
-        </p>
-        <p className="mb-3 mt-1 text-sm text-slate-300">
-          {me.name}&apos;s phone reminders
-        </p>
-        <EnableNotifications memberId={me.id} memberName={me.name} />
-      </section>
 
       <p className="mt-12 text-center text-[10px] uppercase tracking-wider text-slate-600">
         the system asks. you don&apos;t have to.

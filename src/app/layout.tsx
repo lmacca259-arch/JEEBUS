@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { EnableNotifications } from "@/components/push/EnableNotifications";
+import { createClient } from "@/lib/supabase/server";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,15 +43,26 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // Read cookie just to keep the original "show nav once a member is picked"
-  // signal available if we need it later — but the nav now renders always so
-  // the user can never feel "stuck" the way Lisa described after hitting
-  // Switch user.
-  await cookies();
+  const c = await cookies();
+  const memberId = c.get("hyetas_member_id")?.value ?? null;
+
+  let memberName: string | null = null;
+  if (memberId) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("members")
+      .select("name")
+      .eq("id", memberId)
+      .maybeSingle();
+    memberName = data?.name ?? null;
+  }
 
   return (
     <html lang="en" className={`${inter.variable} ${caveat.variable}`}>
       <body className="min-h-dvh font-body text-slate-100 antialiased hyetas-bg">
+        {memberId && memberName ? (
+          <EnableNotifications memberId={memberId} memberName={memberName} />
+        ) : null}
         <div className="pb-24">{children}</div>
         <BottomNav />
       </body>

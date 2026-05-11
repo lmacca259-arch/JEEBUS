@@ -4,15 +4,28 @@ import { useEffect, useState } from "react";
 
 type Props = { memberId: string; memberName: string };
 
-type Status = "idle" | "unsupported" | "denied" | "registering" | "enabled" | "error";
+type Status =
+  | "idle"
+  | "unsupported"
+  | "denied"
+  | "registering"
+  | "enabled"
+  | "error";
+
+const DISMISS_KEY = "hyetas_push_banner_dismissed";
 
 export function EnableNotifications({ memberId, memberName }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    ) {
       setStatus("unsupported");
       return;
     }
@@ -20,7 +33,6 @@ export function EnableNotifications({ memberId, memberName }: Props) {
       setStatus("denied");
       return;
     }
-    // Check existing subscription
     navigator.serviceWorker.getRegistration().then(async (reg) => {
       if (!reg) return;
       const existing = await reg.pushManager.getSubscription();
@@ -28,7 +40,10 @@ export function EnableNotifications({ memberId, memberName }: Props) {
         setStatus("enabled");
       }
     });
-  }, []);
+    if (window.localStorage.getItem(DISMISS_KEY) === memberId) {
+      setDismissed(true);
+    }
+  }, [memberId]);
 
   async function enable() {
     setError(null);
@@ -46,7 +61,7 @@ export function EnableNotifications({ memberId, memberName }: Props) {
       const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapidPublic) {
         setStatus("error");
-        setError("Server not configured (VAPID key missing). Tell Lisa.");
+        setError("Server not configured — tell Lisa.");
         return;
       }
 
@@ -76,48 +91,67 @@ export function EnableNotifications({ memberId, memberName }: Props) {
     }
   }
 
-  if (status === "unsupported") {
-    return (
-      <p className="text-[11px] text-slate-500">
-        Notifications aren&apos;t supported on this browser. On an iPhone, add the
-        app to your home screen first (Share → Add to Home Screen) and try again.
-      </p>
-    );
+  function dismiss() {
+    setDismissed(true);
+    try {
+      window.localStorage.setItem(DISMISS_KEY, memberId);
+    } catch {
+      /* ignore */
+    }
   }
-  if (status === "denied") {
-    return (
-      <p className="text-[11px] text-amber-300">
-        Notifications are blocked for this device. Open browser settings for HYETAS
-        and enable them, then refresh.
-      </p>
-    );
+
+  // Hide entirely when enabled, unsupported, or dismissed.
+  if (status === "enabled" || status === "unsupported" || dismissed) {
+    return null;
   }
-  if (status === "enabled") {
-    return (
-      <p className="text-[11px] text-emerald-400">
-        🔔 Notifications enabled for {memberName} on this device.
-      </p>
-    );
-  }
+
+  const isError = status === "error";
+  const isDenied = status === "denied";
+
   return (
-    <div className="space-y-2">
+    <div
+      className={`relative flex items-center gap-3 border-b px-4 py-2 text-xs ${
+        isError || isDenied
+          ? "border-rose-700/40 bg-rose-900/30 text-rose-200"
+          : "border-amber-300/30 bg-amber-300/10 text-amber-100"
+      }`}
+      role={isError ? "alert" : undefined}
+    >
+      <span aria-hidden className="text-base">
+        {isError || isDenied ? "🔕" : "🔔"}
+      </span>
+      <span className="flex-1 leading-tight">
+        {isDenied ? (
+          <>
+            Notifications are blocked for {memberName} on this device. Open the
+            browser settings to allow.
+          </>
+        ) : isError ? (
+          error || "Couldn't enable notifications."
+        ) : (
+          <>
+            Get a buzz when chores are due, {memberName}. One tap per device.
+          </>
+        )}
+      </span>
+      {!isDenied ? (
+        <button
+          type="button"
+          onClick={enable}
+          disabled={status === "registering"}
+          className="shrink-0 rounded-lg bg-amber-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-950 transition hover:bg-amber-200 disabled:opacity-60"
+        >
+          {status === "registering" ? "Enabling…" : "Enable"}
+        </button>
+      ) : null}
       <button
         type="button"
-        onClick={enable}
-        disabled={status === "registering"}
-        className="w-full rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-300/20 disabled:opacity-60"
+        onClick={dismiss}
+        aria-label="Dismiss"
+        className="shrink-0 rounded p-1 text-current/60 hover:text-current"
       >
-        {status === "registering" ? "Enabling…" : "🔔 Enable notifications on this device"}
+        ✕
       </button>
-      {error ? (
-        <p className="text-[11px] text-rose-300" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <p className="text-[10px] text-slate-500">
-        Your phone will buzz when chores assigned to you are due. Per-device — each
-        family member taps this on their own phone.
-      </p>
     </div>
   );
 }
