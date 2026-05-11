@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/check-due",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/30 * * * *"
     }
   ]
 }
