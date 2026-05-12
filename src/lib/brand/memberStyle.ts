@@ -34,6 +34,13 @@ export function memberStyle(name: string): {
         fg: "#fff1f2",
         accent: "#fb7185",
       };
+    case "Family":
+      return {
+        bg: "linear-gradient(135deg, #facc15, #eab308)", // yellow
+        ring: "rgba(254, 240, 138, 0.45)",
+        fg: "#422006",
+        accent: "#facc15",
+      };
     default:
       return {
         bg: "linear-gradient(135deg, #fbbf24, #f59e0b)",

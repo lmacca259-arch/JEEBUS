@@ -189,9 +189,7 @@ export default async function ChoresPage({
                 {arr.map((c) => {
                   const isMine =
                     memberName != null && c.member?.name === memberName;
-                  const accent = c.member
-                    ? memberStyle(c.member.name).accent
-                    : "#94a3b8";
+                  const accent = memberStyle(c.member?.name ?? "Family").accent;
                   return (
                     <li key={c.id}>
                       <Link
