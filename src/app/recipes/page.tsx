@@ -47,7 +47,16 @@ export default async function RecipesPage() {
     <main className="mx-auto max-w-md px-6 pt-10 pb-8">
       <Header subtitle={`${recipes.length} in the cookbook · all peanut-free`} />
 
-      <ul className="mt-8 grid grid-cols-2 gap-3">
+      <div className="mt-6 flex justify-end">
+        <Link
+          href="/recipes/new"
+          className="rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/20"
+        >
+          + Add recipe
+        </Link>
+      </div>
+
+      <ul className="mt-4 grid grid-cols-2 gap-3">
         {recipes.map((r) => {
           const warn = ruleWarning(r.contains, memberName);
           return (
