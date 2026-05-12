@@ -25,6 +25,13 @@ type DayRow = {
   dinner: RecipeRef | null;
 };
 
+type WeekBlock = {
+  label: string;
+  mondayIso: string;
+  sundayIso: string;
+  days: { iso: string; row: DayRow | null }[];
+};
+
 const DAY_LABEL: Record<string, string> = {
   "0": "Sunday",
   "1": "Monday",
@@ -34,6 +41,14 @@ const DAY_LABEL: Record<string, string> = {
   "5": "Friday",
   "6": "Saturday",
 };
+
+const WEEK_LABELS = ["This week", "Next week", "The week after"];
+
+function addDaysIso(iso: string, days: number): string {
+  const dt = new Date(iso + "T00:00:00Z");
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
 
 export default async function MealsPage() {
   const supabase = await createClient();
@@ -50,10 +65,20 @@ export default async function MealsPage() {
     memberName = m?.name ?? null;
   }
 
-  const monday = planningWeekMonday();
-  const sundayDate = new Date(monday + "T00:00:00Z");
-  sundayDate.setUTCDate(sundayDate.getUTCDate() + 6);
-  const sunday = sundayDate.toISOString().slice(0, 10);
+  // Build the three-week window.
+  const week0Monday = planningWeekMonday();
+  const weeks: WeekBlock[] = WEEK_LABELS.map((label, i) => {
+    const mondayIso = addDaysIso(week0Monday, i * 7);
+    const sundayIso = addDaysIso(mondayIso, 6);
+    const days = Array.from({ length: 7 }, (_, d) => ({
+      iso: addDaysIso(mondayIso, d),
+      row: null as DayRow | null,
+    }));
+    return { label, mondayIso, sundayIso, days };
+  });
+
+  const rangeStart = weeks[0].mondayIso;
+  const rangeEnd = weeks[weeks.length - 1].sundayIso;
 
   const { data: rows, error } = await supabase
     .from("meal_plan_days")
@@ -63,15 +88,22 @@ export default async function MealsPage() {
        lunch:recipes!lunch_recipe_id(id, name, cuisine, contains, is_kid_favourite),
        dinner:recipes!dinner_recipe_id(id, name, cuisine, contains, is_kid_favourite)`,
     )
-    .gte("day_date", monday)
-    .lte("day_date", sunday)
+    .gte("day_date", rangeStart)
+    .lte("day_date", rangeEnd)
     .order("day_date");
 
-  const days = (rows as unknown as DayRow[] | null) ?? [];
+  const allRows = (rows as unknown as DayRow[] | null) ?? [];
+  const byDate = new Map<string, DayRow>();
+  for (const r of allRows) byDate.set(r.day_date, r);
+  for (const w of weeks) {
+    for (const d of w.days) {
+      d.row = byDate.get(d.iso) ?? null;
+    }
+  }
 
   return (
     <main className="mx-auto max-w-md px-6 pt-10 pb-8">
-      <Header subtitle={`This week — ${fmt(monday)} to ${fmt(sunday)}`} />
+      <Header subtitle={`Meals — next 3 weeks · from ${fmt(rangeStart)}`} />
 
       {error ? (
         <p className="mt-6 rounded-xl border border-rose-700/40 bg-rose-900/30 px-4 py-3 text-sm text-rose-300">
@@ -79,35 +111,66 @@ export default async function MealsPage() {
         </p>
       ) : null}
 
-      {days.length === 0 ? (
-        <p className="mt-12 rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-sm text-slate-400">
-          No meals planned for this week yet. The Saturday auto-planner will fill
-          this in next time it runs.
-        </p>
-      ) : (
-        <ol className="mt-8 space-y-5">
-          {days.map((d) => (
-            <li
-              key={d.id}
-              className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"
-            >
-              <DayHero day={d} />
-              <div className="px-5 pt-3 pb-5">
-                <ul className="space-y-2 text-sm">
-                  <MealRow label="Breakfast" r={d.breakfast} member={memberName} />
-                  <MealRow label="Lunch" r={d.lunch} member={memberName} />
-                  <MealRow label="Dinner" r={d.dinner} member={memberName} />
-                </ul>
-                {d.snacks_notes ? (
-                  <p className="mt-3 border-t border-white/5 pt-3 text-xs text-slate-400">
-                    {d.snacks_notes}
-                  </p>
-                ) : null}
+      <div className="mt-8 space-y-10">
+        {weeks.map((w) => {
+          const plannedCount = w.days.filter((d) => d.row).length;
+          return (
+            <section key={w.mondayIso}>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="font-display text-2xl font-bold text-amber-300">
+                  {w.label}
+                </h2>
+                <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                  {fmt(w.mondayIso)} – {fmt(w.sundayIso)}
+                </span>
               </div>
-            </li>
-          ))}
-        </ol>
-      )}
+              {plannedCount === 0 ? (
+                <p className="mb-3 text-xs text-slate-500">
+                  Nothing planned for this week yet.
+                </p>
+              ) : null}
+              <ol className="space-y-5">
+                {w.days.map((d) =>
+                  d.row ? (
+                    <li
+                      key={d.iso}
+                      className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"
+                    >
+                      <DayHero day={d.row} />
+                      <div className="px-5 pt-3 pb-5">
+                        <ul className="space-y-2 text-sm">
+                          <MealRow
+                            label="Breakfast"
+                            r={d.row.breakfast}
+                            member={memberName}
+                          />
+                          <MealRow
+                            label="Lunch"
+                            r={d.row.lunch}
+                            member={memberName}
+                          />
+                          <MealRow
+                            label="Dinner"
+                            r={d.row.dinner}
+                            member={memberName}
+                          />
+                        </ul>
+                        {d.row.snacks_notes ? (
+                          <p className="mt-3 border-t border-white/5 pt-3 text-xs text-slate-400">
+                            {d.row.snacks_notes}
+                          </p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ) : (
+                    <EmptyDayCard key={d.iso} iso={d.iso} />
+                  ),
+                )}
+              </ol>
+            </section>
+          );
+        })}
+      </div>
     </main>
   );
 }
@@ -136,6 +199,22 @@ function DayHero({ day }: { day: DayRow }) {
         </span>
       </div>
     </div>
+  );
+}
+
+function EmptyDayCard({ iso }: { iso: string }) {
+  return (
+    <li className="overflow-hidden rounded-3xl border border-dashed border-white/10 bg-white/[0.02]">
+      <div className="flex items-baseline justify-between px-5 pt-4">
+        <span className="font-display text-xl font-bold text-slate-300">
+          {dayName(iso)}
+        </span>
+        <span className="text-[11px] uppercase tracking-wider text-slate-500">
+          {shortDate(iso)}
+        </span>
+      </div>
+      <p className="px-5 pt-1 pb-5 text-xs text-slate-500">Nothing planned yet.</p>
+    </li>
   );
 }
 
