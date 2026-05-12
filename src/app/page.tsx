@@ -8,6 +8,7 @@ import { Mascot } from "@/components/brand/Mascot";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Avatar } from "@/components/brand/Avatar";
 import { Header } from "@/components/brand/Header";
+import { memberStyle } from "@/lib/brand/memberStyle";
 
 export const dynamic = "force-dynamic";
 
@@ -227,16 +228,18 @@ export default async function Home({
           </div>
         ) : null}
 
-        {myPending.map((row) => (
+        {myPending.map((row) => {
+          const meAccent = memberStyle(me.name).accent;
+          return (
           <article
             key={row.assignment_id}
+            style={{ borderLeftWidth: "4px", borderLeftColor: meAccent }}
             className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-lg"
           >
             <div
               className="px-6 pt-5 pb-4"
               style={{
-                background:
-                  "linear-gradient(135deg, rgba(251,191,36,0.18), rgba(251,113,133,0.10))",
+                background: `linear-gradient(135deg, ${meAccent}33, ${meAccent}10)`,
               }}
             >
               <p className="text-[10px] uppercase tracking-[0.20em] text-amber-300/90">
@@ -277,7 +280,8 @@ export default async function Home({
               </form>
             </div>
           </article>
-        ))}
+          );
+        })}
 
         {myDone.map((row) => (
           <article
@@ -308,9 +312,14 @@ export default async function Home({
             On other people today
           </p>
           {otherToday.map((row) => {
+            const rowAccent = memberStyle(row.member_name).accent;
             return (
               <div
                 key={row.assignment_id}
+                style={{
+                  borderLeftWidth: "4px",
+                  borderLeftColor: rowAccent,
+                }}
                 className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
                   row.status === "done"
                     ? "border-white/5 bg-white/[0.02] opacity-60"
