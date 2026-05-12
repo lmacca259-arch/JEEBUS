@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ruleWarning } from "@/lib/utils/rules";
 import { RecipeHero } from "@/components/brand/RecipeHero";
+import { Toast } from "@/components/brand/Toast";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +26,14 @@ type Recipe = {
 
 export default async function RecipeDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { id } = await params;
+  const { saved } = await searchParams;
+  const toastMessage = saved ? "Changes saved" : null;
   const supabase = await createClient();
   const cookieStore = await cookies();
   const memberId = cookieStore.get("hyetas_member_id")?.value ?? null;
@@ -99,6 +104,10 @@ export default async function RecipeDetailPage({
           ) : null}
         </div>
       </header>
+
+      <div className="mx-6">
+        <Toast message={toastMessage} />
+      </div>
 
       {warn ? (
         <p className="mx-6 mt-6 rounded-xl border border-amber-700/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">

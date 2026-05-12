@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/brand/Header";
 import { Avatar } from "@/components/brand/Avatar";
+import { Toast } from "@/components/brand/Toast";
 import { memberStyle } from "@/lib/brand/memberStyle";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,21 @@ type Chore = {
   notes: string | null;
   pays_aud: number | null;
   default_assignee: string | null;
+  due_time: string | null;
   member: { id: string; name: string } | null;
 };
+
+/** "17:30:00" → "5:30 PM", null → "6 PM" (generator default). */
+function formatChoreTime(timeStr: string | null): string {
+  const t = timeStr ?? "18:00:00";
+  const [hStr, mStr] = t.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const mm = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
+  return `${hour12}${mm} ${ampm}`;
+}
 
 const CADENCE_ORDER: Chore["cadence"][] = ["Daily", "Weekly", "Fortnightly", "Monthly"];
 
@@ -40,7 +54,20 @@ const CADENCE_HINT: Record<string, string> = {
   Monthly: "Once a month",
 };
 
-export default async function ChoresPage() {
+export default async function ChoresPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ added?: string; saved?: string; removed?: string }>;
+}) {
+  const { added, saved, removed } = await searchParams;
+  const toastMessage = added
+    ? "Chore added"
+    : saved
+      ? "Changes saved"
+      : removed
+        ? "Chore removed"
+        : null;
+
   const supabase = await createClient();
   const cookieStore = await cookies();
   const memberId = cookieStore.get("hyetas_member_id")?.value ?? null;
@@ -58,7 +85,7 @@ export default async function ChoresPage() {
   const { data: rows } = await supabase
     .from("chores")
     .select(
-      `id, name, cadence, day_hint, notes, pays_aud, default_assignee,
+      `id, name, cadence, day_hint, notes, pays_aud, default_assignee, due_time,
        member:members!default_assignee(id, name)`,
     )
     .eq("is_active", true)
@@ -107,6 +134,8 @@ export default async function ChoresPage() {
           </Link>
         }
       />
+
+      <Toast message={toastMessage} />
 
       {memberName && myChores.length > 0 ? (
         <section className="mt-6 rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-300/10 via-rose-300/5 to-transparent p-5">
@@ -167,6 +196,10 @@ export default async function ChoresPage() {
                     <li key={c.id}>
                       <Link
                         href={`/chores/${c.id}`}
+                        style={{
+                          borderLeftWidth: "4px",
+                          borderLeftColor: accent,
+                        }}
                         className={`flex items-start gap-3 rounded-2xl border bg-white/[0.04] p-3 transition hover:bg-white/[0.06] ${
                           isMine
                             ? "border-amber-300/40"
@@ -195,7 +228,7 @@ export default async function ChoresPage() {
                             </span>
                           ) : null}
                         </p>
-                        <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
+                        <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                           <span
                             className="rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider"
                             style={{
@@ -207,6 +240,9 @@ export default async function ChoresPage() {
                           </span>
                           <span className="text-slate-500">
                             {c.day_hint === "Anytime" ? "anytime" : c.day_hint}
+                          </span>
+                          <span className="text-slate-500">
+                            ⏰ {formatChoreTime(c.due_time)}
                           </span>
                         </p>
                         {c.notes ? (

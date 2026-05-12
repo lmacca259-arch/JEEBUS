@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ruleWarning } from "@/lib/utils/rules";
 import { Header } from "@/components/brand/Header";
 import { RecipeHero } from "@/components/brand/RecipeHero";
+import { Toast } from "@/components/brand/Toast";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,18 @@ type Recipe = {
   contains: string[] | null;
 };
 
-export default async function RecipesPage() {
+export default async function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ added?: string; removed?: string }>;
+}) {
+  const { added, removed } = await searchParams;
+  const toastMessage = added
+    ? "Recipe added"
+    : removed
+      ? "Recipe removed"
+      : null;
+
   const supabase = await createClient();
   const cookieStore = await cookies();
   const memberId = cookieStore.get("hyetas_member_id")?.value ?? null;
@@ -47,6 +59,8 @@ export default async function RecipesPage() {
   return (
     <main className="mx-auto max-w-md px-6 pt-10 pb-8">
       <Header subtitle={`${recipes.length} in the cookbook · all peanut-free`} />
+
+      <Toast message={toastMessage} />
 
       <div className="mt-6 flex justify-end">
         <Link
