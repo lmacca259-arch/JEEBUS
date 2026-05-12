@@ -229,17 +229,19 @@ export default async function Home({
         ) : null}
 
         {myPending.map((row) => {
-          const meAccent = memberStyle(me.name).accent;
+          // Family chores keep their yellow; user-assigned chores use the
+          // active user's colour. row.member_name is "Family" or a name.
+          const rowAccent = memberStyle(row.member_name).accent;
           return (
           <article
             key={row.assignment_id}
-            style={{ borderLeftWidth: "4px", borderLeftColor: meAccent }}
+            style={{ borderLeftWidth: "4px", borderLeftColor: rowAccent }}
             className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-lg"
           >
             <div
               className="px-6 pt-5 pb-4"
               style={{
-                background: `linear-gradient(135deg, ${meAccent}33, ${meAccent}10)`,
+                background: `linear-gradient(135deg, ${rowAccent}33, ${rowAccent}10)`,
               }}
             >
               <p className="text-[10px] uppercase tracking-[0.20em] text-amber-300/90">
