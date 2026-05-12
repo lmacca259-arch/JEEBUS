@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ruleWarning, planningWeekMonday } from "@/lib/utils/rules";
 import { Header } from "@/components/brand/Header";
 import { recipeStyle } from "@/lib/brand/recipeStyle";
-import { autoFillDinners } from "@/app/actions/meals";
+import { autoFillDinners, shuffleDinners } from "@/app/actions/meals";
 
 export const dynamic = "force-dynamic";
 
@@ -152,7 +152,24 @@ export default async function MealsPage() {
                     family&apos;s rules. Kid favourites on school nights.
                   </p>
                 </form>
-              ) : null}
+              ) : (
+                <form action={shuffleDinners} className="mb-4">
+                  <input
+                    type="hidden"
+                    name="week_monday"
+                    value={w.mondayIso}
+                  />
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-200"
+                  >
+                    🎲 Shuffle these dinners
+                  </button>
+                  <p className="mt-1.5 text-center text-[10px] text-slate-600">
+                    Replaces all 7 dinners with a fresh set of picks.
+                  </p>
+                </form>
+              )}
               {plannedCount === 0 && emptyDinnerCount === 0 ? (
                 <p className="mb-3 text-xs text-slate-500">
                   Nothing planned for this week yet.

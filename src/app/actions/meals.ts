@@ -140,3 +140,22 @@ export async function autoFillDinners(formData: FormData) {
 
   revalidatePath("/meals");
 }
+
+// Clear all dinners in the week, then re-fill from scratch. Used by the
+// "Shuffle these dinners" button when Lisa wants a different set of picks.
+export async function shuffleDinners(formData: FormData) {
+  const weekMonday = String(formData.get("week_monday") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekMonday)) return;
+
+  const supabase = await createClient();
+  const sunday = addDaysIso(weekMonday, 6);
+
+  await supabase
+    .from("meal_plan_days")
+    .update({ dinner_recipe_id: null })
+    .gte("day_date", weekMonday)
+    .lte("day_date", sunday);
+
+  // Re-use the fill logic — same shape, same rules.
+  await autoFillDinners(formData);
+}
