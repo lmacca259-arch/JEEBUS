@@ -130,6 +130,10 @@ export async function updateChore(formData: FormData) {
     .eq("chore_id", id)
     .eq("status", "pending");
 
+  // Re-stamp pending assignments to the new reminder time (or 6pm default).
+  // Without this, changing due_time only takes effect for future generations.
+  await supabase.rpc("apply_chore_time_change", { p_chore_id: id });
+
   revalidatePath("/chores");
   revalidatePath("/");
   redirect("/chores?saved=1");
