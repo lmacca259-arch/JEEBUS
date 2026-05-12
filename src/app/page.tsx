@@ -167,11 +167,11 @@ export default async function Home({
             key={s.shift_id}
             className={`mt-6 overflow-hidden rounded-2xl border px-4 py-3 ${
               isMine
-                ? "border-rose-500/40 bg-rose-500/10"
+                ? "border-purple-500/40 bg-purple-500/10"
                 : "border-white/10 bg-white/[0.04]"
             }`}
           >
-            <p className="text-[10px] uppercase tracking-[0.18em] text-rose-200/80">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-purple-200/80">
               🏥 Tonight
             </p>
             <p className="mt-0.5 font-display text-xl font-bold text-slate-50">

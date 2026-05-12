@@ -8,10 +8,10 @@ export function memberStyle(name: string): {
   switch (name) {
     case "Lisa":
       return {
-        bg: "linear-gradient(135deg, #fb7185, #f43f5e)", // coral / rose
-        ring: "rgba(254, 205, 211, 0.45)",
-        fg: "#fff1f2",
-        accent: "#fb7185",
+        bg: "linear-gradient(135deg, #c084fc, #a855f7)", // violet
+        ring: "rgba(233, 213, 255, 0.45)",
+        fg: "#faf5ff",
+        accent: "#c084fc",
       };
     case "Andrew":
       return {
@@ -29,10 +29,10 @@ export function memberStyle(name: string): {
       };
     case "Hannah":
       return {
-        bg: "linear-gradient(135deg, #c084fc, #a855f7)", // violet
-        ring: "rgba(233, 213, 255, 0.45)",
-        fg: "#faf5ff",
-        accent: "#c084fc",
+        bg: "linear-gradient(135deg, #fb7185, #f43f5e)", // coral / rose
+        ring: "rgba(254, 205, 211, 0.45)",
+        fg: "#fff1f2",
+        accent: "#fb7185",
       };
     default:
       return {
