@@ -29,3 +29,5 @@ Bins on the curb Sunday night. Not cheerful Alex. Not happy Lisa. Just: bins out
 Web push notifications: enabled via VAPID + service worker (slice 8).
 Cron schedule: every 30 minutes (Hobby plan friendly).
 Scheduling: Supabase pg_cron pings `/api/cron/check-due` (Vercel cron not used).
+
+Deploy pipeline: GitHub App reinstalled 2026-05-12 (fresh wire after stuck project link).
