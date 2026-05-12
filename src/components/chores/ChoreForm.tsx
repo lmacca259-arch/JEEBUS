@@ -13,6 +13,7 @@ export type ChoreFormValues = {
   paid_by_member_id?: string | null;
   notes?: string | null;
   is_active?: boolean;
+  due_time?: string | null;
 };
 
 const CADENCES = ["Daily", "Weekly", "Fortnightly", "Monthly"] as const;
@@ -75,6 +76,18 @@ export function ChoreForm({
           </select>
         </Field>
       </div>
+
+      <Field label="Reminder time">
+        <input
+          name="due_time"
+          type="time"
+          defaultValue={v.due_time ? v.due_time.slice(0, 5) : ""}
+          className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 focus:border-amber-500 focus:outline-none"
+        />
+        <span className="mt-1 block text-[11px] text-slate-500">
+          Leave blank for 6:00 PM. Phone notification fires within ±30 min of this time.
+        </span>
+      </Field>
 
       <Field label="Who does it?">
         <select

@@ -50,6 +50,10 @@ function readForm(formData: FormData) {
   const paid_by_member_id = paidByRaw && pays_aud && pays_aud > 0 ? paidByRaw : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const is_active = formData.get("is_active") === "on";
+  const dueTimeRaw = String(formData.get("due_time") ?? "").trim();
+  // HTML input[type=time] returns "HH:MM"; Postgres TIME accepts that.
+  // Empty string -> null so the generator falls back to its 18:00 default.
+  const due_time = /^\d{2}:\d{2}$/.test(dueTimeRaw) ? dueTimeRaw : null;
   return {
     name,
     cadence,
@@ -59,6 +63,7 @@ function readForm(formData: FormData) {
     paid_by_member_id,
     notes,
     is_active,
+    due_time,
   };
 }
 
@@ -81,6 +86,7 @@ export async function addChore(formData: FormData) {
     pays_aud: data.pays_aud,
     paid_by_member_id: data.paid_by_member_id,
     is_active: data.is_active,
+    due_time: data.due_time,
     points: 1,
   });
 
@@ -109,6 +115,7 @@ export async function updateChore(formData: FormData) {
       pays_aud: data.pays_aud,
       paid_by_member_id: data.paid_by_member_id,
       is_active: data.is_active,
+      due_time: data.due_time,
     })
     .eq("id", id);
 

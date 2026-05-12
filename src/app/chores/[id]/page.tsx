@@ -21,7 +21,7 @@ export default async function EditChorePage({
     supabase
       .from("chores")
       .select(
-        "id, name, cadence, day_hint, default_assignee, pays_aud, paid_by_member_id, notes, is_active",
+        "id, name, cadence, day_hint, default_assignee, pays_aud, paid_by_member_id, notes, is_active, due_time",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -44,6 +44,7 @@ export default async function EditChorePage({
     paid_by_member_id: chore.paid_by_member_id,
     notes: chore.notes,
     is_active: chore.is_active,
+    due_time: chore.due_time,
   };
 
   return (
