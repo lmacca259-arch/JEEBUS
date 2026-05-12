@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ruleWarning, planningWeekMonday } from "@/lib/utils/rules";
 import { Header } from "@/components/brand/Header";
 import { recipeStyle } from "@/lib/brand/recipeStyle";
+import { autoFillDinners } from "@/app/actions/meals";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,12 @@ const DAY_LABEL: Record<string, string> = {
   "6": "Saturday",
 };
 
-const WEEK_LABELS = ["This week", "Next week", "The week after"];
+const WEEK_LABELS = [
+  "This week",
+  "Next week",
+  "Week after",
+  "Two weeks after",
+];
 
 function addDaysIso(iso: string, days: number): string {
   const dt = new Date(iso + "T00:00:00Z");
@@ -103,7 +109,7 @@ export default async function MealsPage() {
 
   return (
     <main className="mx-auto max-w-md px-6 pt-10 pb-8">
-      <Header subtitle={`Meals — next 3 weeks · from ${fmt(rangeStart)}`} />
+      <Header subtitle={`Meals — next 4 weeks · from ${fmt(rangeStart)}`} />
 
       {error ? (
         <p className="mt-6 rounded-xl border border-rose-700/40 bg-rose-900/30 px-4 py-3 text-sm text-rose-300">
@@ -114,6 +120,9 @@ export default async function MealsPage() {
       <div className="mt-8 space-y-10">
         {weeks.map((w) => {
           const plannedCount = w.days.filter((d) => d.row).length;
+          const emptyDinnerCount = w.days.filter(
+            (d) => !d.row?.dinner,
+          ).length;
           return (
             <section key={w.mondayIso}>
               <div className="mb-3 flex items-baseline justify-between">
@@ -124,7 +133,27 @@ export default async function MealsPage() {
                   {fmt(w.mondayIso)} – {fmt(w.sundayIso)}
                 </span>
               </div>
-              {plannedCount === 0 ? (
+              {emptyDinnerCount > 0 ? (
+                <form action={autoFillDinners} className="mb-4">
+                  <input
+                    type="hidden"
+                    name="week_monday"
+                    value={w.mondayIso}
+                  />
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-amber-300/20"
+                  >
+                    ✨ Auto-suggest dinners for this week
+                  </button>
+                  <p className="mt-1.5 text-center text-[10px] text-slate-500">
+                    Fills {emptyDinnerCount} empty{" "}
+                    {emptyDinnerCount === 1 ? "dinner" : "dinners"} using your
+                    family&apos;s rules. Kid favourites on school nights.
+                  </p>
+                </form>
+              ) : null}
+              {plannedCount === 0 && emptyDinnerCount === 0 ? (
                 <p className="mb-3 text-xs text-slate-500">
                   Nothing planned for this week yet.
                 </p>
