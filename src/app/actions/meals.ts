@@ -71,11 +71,13 @@ export async function autoFillDinners(formData: FormData) {
   const existingByDate = new Map<string, ExistingDay>();
   for (const r of existing) existingByDate.set(r.day_date, r);
 
-  // Eligible dinner recipes — has 'dinner' in meal_types, no unsafe tags.
+  // Eligible dinner recipes — has 'dinner' in meal_types, is active,
+  // and has no unsafe tags.
   const { data: recipes } = await supabase
     .from("recipes")
     .select("id, name, contains, is_kid_favourite, meal_types")
-    .contains("meal_types", ["dinner"]);
+    .contains("meal_types", ["dinner"])
+    .eq("is_active", true);
 
   const eligible = ((recipes as Recipe[] | null) ?? []).filter((r) => {
     const c = r.contains ?? [];

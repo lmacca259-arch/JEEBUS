@@ -57,12 +57,18 @@ export default async function RecipeDetailPage({
     <main className="mx-auto max-w-md pb-8">
       <RecipeHero name={recipe.name} cuisine={recipe.cuisine} height={220} />
 
-      <div className="px-6 -mt-12 relative z-10">
+      <div className="px-6 -mt-12 relative z-10 flex items-center justify-between">
         <Link
           href="/recipes"
           className="inline-block text-[10px] uppercase tracking-[0.18em] text-white drop-shadow hover:text-amber-200"
         >
           ← Recipes
+        </Link>
+        <Link
+          href={`/recipes/${recipe.id}/edit`}
+          className="rounded-full border border-white/40 bg-black/30 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white drop-shadow hover:bg-black/50"
+        >
+          Edit
         </Link>
       </div>
 

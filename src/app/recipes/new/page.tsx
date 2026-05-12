@@ -35,7 +35,7 @@ export default async function NewRecipePage({
         </p>
       ) : null}
 
-      <RecipeForm />
+      <RecipeForm mode="new" />
     </main>
   );
 }

@@ -17,21 +17,15 @@ async function getHouseholdId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-export async function addRecipe(formData: FormData) {
+function readForm(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) redirect("/recipes/new?error=Name+is+required");
-
   const cuisine = String(formData.get("cuisine") ?? "").trim() || null;
 
   const mealTypeValues = formData.getAll("meal_types").map(String);
   const meal_types = MEAL_TYPES.filter((t) => mealTypeValues.includes(t));
-  if (meal_types.length === 0) {
-    redirect(`/recipes/new?error=${encodeURIComponent("Pick at least one meal type")}`);
-  }
 
   const containsValues = formData.getAll("contains").map(String);
   const contains = CONTAINS_TAGS.filter((t) => containsValues.includes(t));
-  // is_peanut_free defaults true, flipped only if peanut explicitly ticked.
   const is_peanut_free = !contains.includes("peanut");
   const is_kid_favourite = formData.get("is_kid_favourite") === "on";
 
@@ -47,12 +41,7 @@ export async function addRecipe(formData: FormData) {
     String(formData.get("instructions_md") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  const supabase = await createClient();
-  const householdId = await getHouseholdId();
-  if (!householdId) redirect("/recipes?error=Household+not+found");
-
-  const { error } = await supabase.from("recipes").insert({
-    household_id: householdId,
+  return {
     name,
     cuisine,
     meal_types,
@@ -61,10 +50,30 @@ export async function addRecipe(formData: FormData) {
     is_peanut_free,
     is_kid_favourite,
     contains,
-    is_cooked: true,
     ingredients_md,
     instructions_md,
     notes,
+  };
+}
+
+export async function addRecipe(formData: FormData) {
+  const data = readForm(formData);
+  if (!data.name) redirect("/recipes/new?error=Name+is+required");
+  if (data.meal_types.length === 0) {
+    redirect(
+      `/recipes/new?error=${encodeURIComponent("Pick at least one meal type")}`,
+    );
+  }
+
+  const supabase = await createClient();
+  const householdId = await getHouseholdId();
+  if (!householdId) redirect("/recipes?error=Household+not+found");
+
+  const { error } = await supabase.from("recipes").insert({
+    household_id: householdId,
+    ...data,
+    is_cooked: true,
+    is_active: true,
   });
 
   if (error)
@@ -73,4 +82,45 @@ export async function addRecipe(formData: FormData) {
   revalidatePath("/recipes");
   revalidatePath("/meals");
   redirect("/recipes?added=1");
+}
+
+export async function updateRecipe(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) redirect("/recipes?error=Missing+recipe+id");
+
+  const data = readForm(formData);
+  if (!data.name)
+    redirect(`/recipes/${id}/edit?error=Name+is+required`);
+  if (data.meal_types.length === 0) {
+    redirect(
+      `/recipes/${id}/edit?error=${encodeURIComponent("Pick at least one meal type")}`,
+    );
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("recipes")
+    .update(data)
+    .eq("id", id);
+
+  if (error)
+    redirect(`/recipes/${id}/edit?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/recipes");
+  revalidatePath(`/recipes/${id}`);
+  revalidatePath("/meals");
+  redirect(`/recipes/${id}?saved=1`);
+}
+
+export async function removeRecipe(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("recipes")
+    .update({ is_active: false })
+    .eq("id", id);
+  revalidatePath("/recipes");
+  revalidatePath("/meals");
+  redirect("/recipes?removed=1");
 }

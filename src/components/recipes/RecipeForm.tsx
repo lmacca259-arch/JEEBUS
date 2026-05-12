@@ -1,4 +1,4 @@
-import { addRecipe } from "@/app/actions/recipes";
+import { addRecipe, updateRecipe, removeRecipe } from "@/app/actions/recipes";
 
 const MEAL_TYPES = [
   { value: "breakfast", label: "Breakfast" },
@@ -21,13 +21,43 @@ const INPUT =
 const TEXTAREA =
   "w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 leading-relaxed focus:border-amber-500 focus:outline-none";
 
-export function RecipeForm() {
+export type RecipeFormValues = {
+  id?: string;
+  name?: string;
+  cuisine?: string | null;
+  meal_types?: string[] | null;
+  servings?: number | null;
+  prep_time_min?: number | null;
+  is_kid_favourite?: boolean;
+  contains?: string[] | null;
+  ingredients_md?: string | null;
+  instructions_md?: string | null;
+  notes?: string | null;
+};
+
+export function RecipeForm({
+  initial,
+  mode,
+}: {
+  initial?: RecipeFormValues;
+  mode: "new" | "edit";
+}) {
+  const action = mode === "new" ? addRecipe : updateRecipe;
+  const v: RecipeFormValues = initial ?? {};
+  const mealTypes = v.meal_types ?? [];
+  const contains = v.contains ?? [];
+
   return (
-    <form action={addRecipe} className="mt-6 space-y-4">
+    <form action={action} className="mt-6 space-y-4">
+      {mode === "edit" && v.id ? (
+        <input type="hidden" name="id" value={v.id} />
+      ) : null}
+
       <Field label="Recipe name">
         <input
           name="name"
           required
+          defaultValue={v.name ?? ""}
           placeholder="e.g. Spinach & Feta Pie"
           className={INPUT}
         />
@@ -36,6 +66,7 @@ export function RecipeForm() {
       <Field label="Cuisine (optional)">
         <input
           name="cuisine"
+          defaultValue={v.cuisine ?? ""}
           placeholder="e.g. Greek, Aussie, Italian"
           className={INPUT}
         />
@@ -52,6 +83,7 @@ export function RecipeForm() {
                 type="checkbox"
                 name="meal_types"
                 value={t.value}
+                defaultChecked={mealTypes.includes(t.value)}
                 className="h-4 w-4 accent-amber-300"
               />
               <span className="text-xs text-slate-200">{t.label}</span>
@@ -66,7 +98,7 @@ export function RecipeForm() {
             name="servings"
             type="number"
             min="1"
-            defaultValue="4"
+            defaultValue={v.servings != null ? String(v.servings) : "4"}
             className={INPUT}
           />
         </Field>
@@ -75,6 +107,9 @@ export function RecipeForm() {
             name="prep_time_min"
             type="number"
             min="0"
+            defaultValue={
+              v.prep_time_min != null ? String(v.prep_time_min) : ""
+            }
             placeholder="e.g. 30"
             className={INPUT}
           />
@@ -85,6 +120,7 @@ export function RecipeForm() {
         <input
           type="checkbox"
           name="is_kid_favourite"
+          defaultChecked={v.is_kid_favourite ?? false}
           className="h-4 w-4 accent-amber-300"
         />
         <span className="text-sm text-slate-200">⭐ Kid favourite</span>
@@ -101,6 +137,7 @@ export function RecipeForm() {
                 type="checkbox"
                 name="contains"
                 value={c.value}
+                defaultChecked={contains.includes(c.value)}
                 className="h-4 w-4 accent-rose-400"
               />
               <span className="text-xs text-slate-200">{c.label}</span>
@@ -117,6 +154,7 @@ export function RecipeForm() {
         <textarea
           name="ingredients_md"
           rows={6}
+          defaultValue={v.ingredients_md ?? ""}
           placeholder={
             "One per line — markdown supported:\n- 500g beef mince\n- 1 onion, diced\n- 2 cloves garlic"
           }
@@ -128,6 +166,7 @@ export function RecipeForm() {
         <textarea
           name="instructions_md"
           rows={6}
+          defaultValue={v.instructions_md ?? ""}
           placeholder={
             "Numbered or freeform:\n1. Brown the mince\n2. Add onion and garlic\n3. Simmer 20 min"
           }
@@ -139,6 +178,7 @@ export function RecipeForm() {
         <textarea
           name="notes"
           rows={2}
+          defaultValue={v.notes ?? ""}
           placeholder="Family tweaks, who likes it, what to serve with..."
           className={TEXTAREA}
         />
@@ -148,8 +188,12 @@ export function RecipeForm() {
         type="submit"
         className="w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200"
       >
-        Save recipe
+        {mode === "new" ? "Save recipe" : "Save changes"}
       </button>
+
+      {mode === "edit" && v.id ? (
+        <RemoveButton id={v.id} name={v.name ?? "this recipe"} />
+      ) : null}
     </form>
   );
 }
@@ -168,5 +212,24 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function RemoveButton({ id, name }: { id: string; name: string }) {
+  return (
+    <form action={removeRecipe} className="pt-2">
+      <input type="hidden" name="id" value={id} />
+      <button
+        type="submit"
+        className="w-full rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/15"
+        aria-label={`Remove ${name}`}
+      >
+        Remove recipe
+      </button>
+      <p className="mt-1.5 text-center text-[10px] text-slate-500">
+        Keeps it linked to any past meal plans; just stops it appearing in the
+        cookbook and auto-suggest.
+      </p>
+    </form>
   );
 }

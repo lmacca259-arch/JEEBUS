@@ -39,6 +39,7 @@ export default async function RecipesPage() {
     .select(
       "id, name, cuisine, meal_types, servings, prep_time_min, is_peanut_free, is_kid_favourite, contains",
     )
+    .eq("is_active", true)
     .order("name");
 
   const recipes = (rows as Recipe[] | null) ?? [];
