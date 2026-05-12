@@ -118,11 +118,15 @@ export default async function MealsPage() {
       ) : null}
 
       <div className="mt-8 space-y-10">
-        {weeks.map((w) => {
+        {weeks.map((w, weekIndex) => {
           const plannedCount = w.days.filter((d) => d.row).length;
           const emptyDinnerCount = w.days.filter(
             (d) => !d.row?.dinner,
           ).length;
+          // Protect "this week" and "next week" from accidental shuffle — those
+          // are usually the ones Lisa has curated by hand. Shuffle starts on
+          // the week after next.
+          const allowShuffle = weekIndex >= 2;
           return (
             <section key={w.mondayIso}>
               <div className="mb-3 flex items-baseline justify-between">
@@ -152,7 +156,7 @@ export default async function MealsPage() {
                     family&apos;s rules. Kid favourites on school nights.
                   </p>
                 </form>
-              ) : (
+              ) : allowShuffle ? (
                 <form action={shuffleDinners} className="mb-4">
                   <input
                     type="hidden"
@@ -169,7 +173,7 @@ export default async function MealsPage() {
                     Replaces all 7 dinners with a fresh set of picks.
                   </p>
                 </form>
-              )}
+              ) : null}
               {plannedCount === 0 && emptyDinnerCount === 0 ? (
                 <p className="mb-3 text-xs text-slate-500">
                   Nothing planned for this week yet.
