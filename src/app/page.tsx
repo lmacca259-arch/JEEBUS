@@ -1,4 +1,5 @@
 // HYETAS Tonight page — auto-generates today's chores + shows shift banner.
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { markDone } from "@/app/actions/done";
@@ -132,13 +133,21 @@ export default async function Home({
   inFourteenDays.setDate(inFourteenDays.getDate() + 14);
   const { data: upcomingShifts } = await supabase
     .from("shifts")
-    .select("starts_at, is_last_in_block")
+    .select("starts_at")
     .eq("member_id", me.id)
     .gt("starts_at", new Date().toISOString())
     .lte("starts_at", inFourteenDays.toISOString())
     .order("starts_at")
     .limit(1);
   const nextShift = upcomingShifts?.[0] ?? null;
+
+  // Does this member have any shifts at all? Controls whether we show a
+  // small "My roster" entry-point link on Tonight.
+  const { count: shiftCount } = await supabase
+    .from("shifts")
+    .select("id", { count: "exact", head: true })
+    .eq("member_id", me.id);
+  const hasAnyShifts = (shiftCount ?? 0) > 0;
 
   const myPending = today.filter((r) => r.is_for_me && r.status === "pending");
   const myDone = today.filter((r) => r.is_for_me && r.status === "done");
@@ -163,17 +172,24 @@ export default async function Home({
       {todaysShifts.map((s) => {
         const isMine = s.member_id === me.id;
         const sleepEnd = s.is_last_in_block ? "2:30 PM" : "5:30 PM";
-        return (
+        const inner = (
           <div
-            key={s.shift_id}
-            className={`mt-6 overflow-hidden rounded-2xl border px-4 py-3 ${
+            className={`overflow-hidden rounded-2xl border px-4 py-3 ${
               isMine
                 ? "border-purple-500/40 bg-purple-500/10"
                 : "border-white/10 bg-white/[0.04]"
             }`}
           >
-            <p className="text-[10px] uppercase tracking-[0.18em] text-purple-200/80">
-              🏥 Tonight
+            <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-purple-200/80">
+              <span>🏥 Tonight</span>
+              {isMine ? (
+                <span
+                  className="ml-auto text-purple-200/70"
+                  aria-label="Edit roster"
+                >
+                  Edit roster ›
+                </span>
+              ) : null}
             </p>
             <p className="mt-0.5 font-display text-xl font-bold text-slate-50">
               {isMine ? "You're" : `${s.member_name} is`} on {s.shift_type} ·{" "}
@@ -187,11 +203,23 @@ export default async function Home({
             </p>
           </div>
         );
+        return isMine ? (
+          <Link key={s.shift_id} href="/shifts" className="mt-6 block">
+            {inner}
+          </Link>
+        ) : (
+          <div key={s.shift_id} className="mt-6">
+            {inner}
+          </div>
+        );
       })}
 
       {!todaysShifts.some((s) => s.member_id === me.id) && nextShift ? (
-        <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-slate-400">
-          🏥 Next shift:{" "}
+        <Link
+          href="/shifts"
+          className="mt-6 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-slate-400 hover:bg-white/[0.05]"
+        >
+          <span>🏥 Next shift:</span>
           <span className="text-slate-200">
             {new Date(nextShift.starts_at).toLocaleDateString("en-AU", {
               weekday: "short",
@@ -200,7 +228,19 @@ export default async function Home({
               timeZone: "Australia/Melbourne",
             })}
           </span>
-        </p>
+          <span className="ml-auto text-slate-500">Edit roster ›</span>
+        </Link>
+      ) : null}
+
+      {hasAnyShifts &&
+      !todaysShifts.some((s) => s.member_id === me.id) &&
+      !nextShift ? (
+        <Link
+          href="/shifts"
+          className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-slate-400 hover:bg-white/[0.05]"
+        >
+          🏥 My roster ›
+        </Link>
       ) : null}
 
       {done ? (
