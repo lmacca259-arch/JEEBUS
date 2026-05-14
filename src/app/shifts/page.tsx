@@ -99,7 +99,7 @@ export default async function ShiftsPage({
       .eq("member_id", memberId)
       .gte("starts_at", cutoffIso)
       .order("starts_at");
-    shifts = (rows as EnrichedShift[] | null) ?? [];
+    shifts = (rows as unknown as EnrichedShift[] | null) ?? [];
   }
 
   // Group consecutive shifts into blocks.

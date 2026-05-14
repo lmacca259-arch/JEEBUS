@@ -17,11 +17,20 @@ export default async function EditShiftPage({
   const { error } = await searchParams;
   const supabase = await createClient();
 
-  const { data: shift } = await supabase
+  type ShiftRow = {
+    shift_id: string;
+    member_name: string;
+    shift_type: string;
+    shift_date: string;
+    is_last_in_block: boolean;
+  };
+
+  const { data: rawShift } = await supabase
     .from("v_shifts_enriched")
     .select("shift_id, member_name, shift_type, shift_date, is_last_in_block")
     .eq("shift_id", id)
     .maybeSingle();
+  const shift = rawShift as unknown as ShiftRow | null;
 
   if (!shift) notFound();
 

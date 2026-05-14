@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { createClient } from "@/lib/supabase/server";
 
 let configured = false;
 function configure() {
@@ -27,31 +28,33 @@ export type SubscriptionRow = {
   auth: string;
 };
 
-// Loose type for the Supabase client — using the full @supabase/ssr return type
-// here causes "Type instantiation is excessively deep" during `next build`.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseLike = any;
-
-/** Send to all subscriptions for a member. Returns {sent, removed}. */
+/**
+ * Send a push payload to every subscribed device for a member.
+ * Creates its own Supabase client so callers don't have to pass one
+ * (and we avoid the "Type instantiation is excessively deep" error
+ * that bit us in slice 8 when the @supabase/ssr return type was the
+ * parameter type).
+ */
 export async function pushToMember(
-  supabase: SupabaseLike,
   memberId: string,
   payload: PushPayload,
 ): Promise<{ sent: number; removed: number }> {
   configure();
+  const supabase = await createClient();
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
     .eq("member_id", memberId);
 
-  if (!subs || subs.length === 0) return { sent: 0, removed: 0 };
+  const rows = (subs as SubscriptionRow[] | null) ?? [];
+  if (rows.length === 0) return { sent: 0, removed: 0 };
 
   const json = JSON.stringify(payload);
   let sent = 0;
   let removed = 0;
 
-  for (const sub of subs) {
+  for (const sub of rows) {
     try {
       await webpush.sendNotification(
         {

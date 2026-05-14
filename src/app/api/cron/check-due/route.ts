@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       url: "/",
       tag: `chore-${row.assignment_id}`,
     };
-    const result = await pushToMember(supabase, row.member_id, payload);
+    const result = await pushToMember(row.member_id, payload);
     pushed += result.sent;
     cleanedUp += result.removed;
 
