@@ -20,6 +20,7 @@ self.addEventListener("push", (event) => {
   const title = data.title || "HYETAS";
   const body = data.body || "";
   const url = data.url || "/";
+  const silent = data.silent === true;
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -28,10 +29,14 @@ self.addEventListener("push", (event) => {
       badge: "/favicon.svg",
       data: { url },
       tag: data.tag || "hyetas-default",
-      renotify: true,
-      // iOS doesn't currently support vibrate/sound flags via web push;
-      // these are ignored there but help on Android.
-      vibrate: [120, 60, 120],
+      // Sleep guard: silent notifications still show on the lock screen
+      // but skip sound and vibration. renotify only when not silent so
+      // Lisa doesn't get a buzz from a tag-replacement during sleep.
+      silent,
+      renotify: !silent,
+      // iOS ignores vibrate over web push; Android honours it. Skip the
+      // pattern entirely when we want silence.
+      vibrate: silent ? [] : [120, 60, 120],
     }),
   );
 });

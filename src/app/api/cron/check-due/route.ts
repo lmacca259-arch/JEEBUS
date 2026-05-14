@@ -48,17 +48,29 @@ export async function GET(request: Request) {
   let pushed = 0;
   let skipped = 0;
   let cleanedUp = 0;
+  let silenced = 0;
 
   for (const row of due) {
     if (!row.member_id) {
       skipped += 1;
       continue;
     }
+
+    // Sleep guard: if the recipient is currently in their post-shift
+    // sleep window, render the notification but skip sound + vibration.
+    const { data: sleepingRaw } = await supabase.rpc(
+      "is_member_sleeping_now",
+      { p_member_id: row.member_id },
+    );
+    const silent = sleepingRaw === true;
+    if (silent) silenced += 1;
+
     const payload: PushPayload = {
       title: `🌙 Tonight · ${row.chore_name}`,
       body: `Hey ${row.member_name}, time to do it. Tap to mark done.`,
       url: "/",
       tag: `chore-${row.assignment_id}`,
+      silent,
     };
     const result = await pushToMember(row.member_id, payload);
     pushed += result.sent;
@@ -67,13 +79,14 @@ export async function GET(request: Request) {
     await supabase.from("nudges").insert({
       member_id: row.member_id,
       assignment_id: row.assignment_id,
-      channel: "web-push",
+      channel: silent ? "web-push-silent" : "web-push",
     });
   }
 
   return NextResponse.json({
     checked: due.length,
     pushed,
+    silenced,
     skipped_family: skipped,
     cleaned_up_dead_subscriptions: cleanedUp,
   });

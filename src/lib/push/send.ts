@@ -19,6 +19,10 @@ export type PushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  /** When true, the service worker renders a silent notification —
+   *  visible on the lock screen but no sound or vibration. Used by the
+   *  sleep guard for Lisa during her post-shift sleep window. */
+  silent?: boolean;
 };
 
 export type SubscriptionRow = {
