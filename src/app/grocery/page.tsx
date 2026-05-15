@@ -97,14 +97,10 @@ export default async function GroceryPage({
     }
   }
 
-  // For each row id, the next unticked row's shop URL (or null if it's the last).
-  const nextShopUrlByRowId = new Map<string, string | null>();
-  for (let i = 0; i < orderedItems.length; i++) {
-    const remaining = orderedItems.slice(i + 1).find((r) => !r.got_it);
-    nextShopUrlByRowId.set(
-      orderedItems[i].id,
-      remaining ? shopUrl(remaining.item, shopMode) : null,
-    );
+  // For each row id, that row's own shop URL — tapping the row opens THIS item.
+  const ownShopUrlByRowId = new Map<string, string | null>();
+  for (const it of orderedItems) {
+    ownShopUrlByRowId.set(it.id, shopUrl(it.item, shopMode));
   }
 
   const unticked = orderedItems.filter((i) => !i.got_it);
@@ -222,7 +218,7 @@ export default async function GroceryPage({
                   <ShopRow
                     row={it}
                     shopMode={shopMode}
-                    nextShopUrl={nextShopUrlByRowId.get(it.id) ?? null}
+                    ownShopUrl={ownShopUrlByRowId.get(it.id) ?? null}
                   />
                 </li>
               ))}

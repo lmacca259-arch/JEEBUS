@@ -67,7 +67,7 @@ export function ShopModeBanner({
         🛒 Shopping at {storeName}
       </p>
       <p className="mt-0.5 text-[11px] opacity-80">
-        Ticking an item opens the next one in your shop tab.
+        Tap an item to view + tick it. Use ↷ to skip what you already have.
       </p>
       <div className="mt-2 flex gap-2">
         <button

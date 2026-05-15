@@ -18,24 +18,28 @@ export type ShopRowItem = {
 type Props = {
   row: ShopRowItem;
   shopMode: "coles" | "woolies" | null;
-  nextShopUrl: string | null;
+  ownShopUrl: string | null;
 };
 
-export function ShopRow({ row, shopMode, nextShopUrl }: Props) {
-  function handleSubmit() {
-    // Only nudge the shop tab forward when we're TICKING an item (not un-ticking).
-    if (!row.got_it && shopMode && nextShopUrl) {
-      window.open(nextShopUrl, "hyetas-shop");
+export function ShopRow({ row, shopMode, ownShopUrl }: Props) {
+  // Main row tap: open THIS item on the shop tab AND tick it.
+  // Only opens when ticking (not when un-ticking an already-done row).
+  function openAndTick() {
+    if (!row.got_it && shopMode && ownShopUrl) {
+      window.open(ownShopUrl, "hyetas-shop");
     }
   }
 
+  const showSkip = shopMode !== null && !row.got_it;
+
   return (
-    <form action={toggleGotIt} onSubmit={handleSubmit}>
+    <form action={toggleGotIt} className="flex items-stretch gap-1.5">
       <input type="hidden" name="id" value={row.id} />
       <input type="hidden" name="next" value={(!row.got_it).toString()} />
       <button
         type="submit"
-        className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
+        onClick={openAndTick}
+        className={`flex flex-1 items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
           row.got_it
             ? "border-white/5 bg-white/[0.02] text-slate-500"
             : "border-white/10 bg-white/[0.04] hover:border-amber-500/50"
@@ -82,6 +86,16 @@ export function ShopRow({ row, shopMode, nextShopUrl }: Props) {
           ) : null}
         </span>
       </button>
+      {showSkip ? (
+        <button
+          type="submit"
+          aria-label="Skip — I already have this"
+          title="Skip — I already have this"
+          className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 text-base text-slate-300 transition hover:border-amber-500/50 hover:text-amber-300"
+        >
+          ↷
+        </button>
+      ) : null}
     </form>
   );
 }
