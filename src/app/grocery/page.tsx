@@ -8,6 +8,7 @@ import {
 import { Header } from "@/components/brand/Header";
 import { ShopModeBanner } from "@/components/grocery/ShopModeBanner";
 import { ShopRow, type ShopRowItem } from "@/components/grocery/ShopRow";
+import { StandingItemsPanel } from "@/components/grocery/StandingItemsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +150,9 @@ export default async function GroceryPage({
         firstShopUrl={firstShopUrl}
         remainingCount={unticked.length}
       />
+
+      {/* Standing items management */}
+      <StandingItemsPanel />
 
       {/* Rebuild button */}
       <form action={rebuildGrocery} className="mt-3">

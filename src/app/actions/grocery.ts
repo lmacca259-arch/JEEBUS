@@ -26,6 +26,14 @@ type ConsolidatedRow = {
   target_servings: number | null;
 };
 
+type StandingItemRow = {
+  item: string;
+  quantity: string | null;
+  aisle: string | null;
+  notes: string | null;
+  home_only: boolean;
+};
+
 type GroceryInsert = {
   household_id: string;
   week_of: string;
@@ -42,8 +50,7 @@ type GroceryInsert = {
  * Rebuild the grocery list for a given week from the meal plan.
  * - Wipes ALL existing rows for that week (standing + hand-built).
  * - Inserts consolidated rows from `consolidate_grocery_for_week`.
- * - Re-adds the standing items: watermelon + ranch dip every week,
- *   bananas only on HOME weeks (Hannah at home).
+ * - Adds every entry from `standing_items` (respecting home_only flag).
  */
 export async function rebuildGrocery(formData: FormData) {
   const weekMonday = String(formData.get("week") ?? "");
@@ -84,7 +91,7 @@ export async function rebuildGrocery(formData: FormData) {
     .eq("household_id", householdId)
     .eq("week_of", weekMonday);
 
-  // 4. Build the insert payload.
+  // 4. Build the insert payload from consolidator rows.
   const inserts: GroceryInsert[] = consolidated.map((r) => ({
     household_id: householdId,
     week_of: weekMonday,
@@ -97,51 +104,25 @@ export async function rebuildGrocery(formData: FormData) {
     notes: null,
   }));
 
-  // 5. Standing items.
-  inserts.push({
-    household_id: householdId,
-    week_of: weekMonday,
-    item: "Watermelon",
-    quantity: "1 small",
-    aisle: "Produce",
-    for_recipes: null,
-    is_standing: true,
-    got_it: false,
-    notes: "Alex's school lunch",
-  });
-  inserts.push({
-    household_id: householdId,
-    week_of: weekMonday,
-    item: "Ranch dip",
-    quantity: "1 tub",
-    aisle: "Dairy & Eggs",
-    for_recipes: null,
-    is_standing: true,
-    got_it: false,
-    notes: "Afternoon snack",
-  });
-  inserts.push({
-    household_id: householdId,
-    week_of: weekMonday,
-    item: "Long life milk",
-    quantity: "1 L",
-    aisle: "Pantry",
-    for_recipes: null,
-    is_standing: true,
-    got_it: false,
-    notes: "Cooking + Alex",
-  });
-  if (isHannahHome) {
+  // 5. Standing items from the user-managed table.
+  const { data: standingRows } = await supabase
+    .from("standing_items")
+    .select("item, quantity, aisle, notes, home_only")
+    .eq("household_id", householdId)
+    .order("item");
+
+  for (const s of (standingRows ?? []) as StandingItemRow[]) {
+    if (s.home_only && !isHannahHome) continue;
     inserts.push({
       household_id: householdId,
       week_of: weekMonday,
-      item: "Bananas",
-      quantity: "2",
-      aisle: "Produce",
+      item: s.item,
+      quantity: s.quantity,
+      aisle: s.aisle,
       for_recipes: null,
       is_standing: true,
       got_it: false,
-      notes: "HOME week",
+      notes: s.notes,
     });
   }
 
@@ -149,4 +130,42 @@ export async function rebuildGrocery(formData: FormData) {
 
   revalidatePath("/grocery");
   redirect(`/grocery?week=${slot}&rebuilt=1`);
+}
+
+export async function addStandingItem(formData: FormData) {
+  const item = String(formData.get("item") ?? "").trim();
+  const quantity = String(formData.get("quantity") ?? "").trim() || null;
+  const aisle = String(formData.get("aisle") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const homeOnly = formData.get("home_only") === "on";
+  if (!item) return;
+
+  const supabase = await createClient();
+  const { data: hh } = await supabase
+    .from("households")
+    .select("id")
+    .limit(1)
+    .single();
+  if (!hh) return;
+
+  await supabase.from("standing_items").insert({
+    household_id: hh.id,
+    item,
+    quantity,
+    aisle,
+    notes,
+    home_only: homeOnly,
+  });
+
+  revalidatePath("/grocery");
+}
+
+export async function removeStandingItem(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("standing_items").delete().eq("id", id);
+
+  revalidatePath("/grocery");
 }
