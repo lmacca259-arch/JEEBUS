@@ -1,0 +1,109 @@
+"use client";
+
+import { toggleGotIt } from "@/app/actions/grocery";
+
+export type ShopRowItem = {
+  id: string;
+  item: string;
+  quantity: string | null;
+  for_recipes: string | null;
+  notes: string | null;
+  coles_price: number | null;
+  woolies_price: number | null;
+  cheaper_at: "coles" | "woolworths" | "tie" | "not_found" | null;
+  got_it: boolean;
+  is_standing: boolean;
+};
+
+type Props = {
+  row: ShopRowItem;
+  shopMode: "coles" | "woolies" | null;
+  nextShopUrl: string | null;
+};
+
+export function ShopRow({ row, shopMode, nextShopUrl }: Props) {
+  function handleSubmit() {
+    // Only nudge the shop tab forward when we're TICKING an item (not un-ticking).
+    if (!row.got_it && shopMode && nextShopUrl) {
+      window.open(nextShopUrl, "hyetas-shop");
+    }
+  }
+
+  return (
+    <form action={toggleGotIt} onSubmit={handleSubmit}>
+      <input type="hidden" name="id" value={row.id} />
+      <input type="hidden" name="next" value={(!row.got_it).toString()} />
+      <button
+        type="submit"
+        className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
+          row.got_it
+            ? "border-white/5 bg-white/[0.02] text-slate-500"
+            : "border-white/10 bg-white/[0.04] hover:border-amber-500/50"
+        }`}
+      >
+        <span
+          className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+            row.got_it
+              ? "border-emerald-500 bg-emerald-500 text-slate-950"
+              : "border-slate-600"
+          }`}
+          aria-hidden
+        >
+          {row.got_it ? "✓" : ""}
+        </span>
+        <span className="flex-1">
+          <span className="flex items-baseline gap-2">
+            <span
+              className={`text-sm ${
+                row.got_it ? "line-through" : "text-slate-100"
+              }`}
+            >
+              {row.item}
+            </span>
+            {row.is_standing ? (
+              <span className="text-[10px] uppercase tracking-wider text-amber-300">
+                standing
+              </span>
+            ) : null}
+            {row.quantity ? (
+              <span className="text-xs text-slate-500">{row.quantity}</span>
+            ) : null}
+          </span>
+          {row.for_recipes ? (
+            <span className="block text-[11px] text-slate-500">
+              for {row.for_recipes}
+            </span>
+          ) : null}
+          <PriceLine row={row} />
+          {row.notes ? (
+            <span className="mt-0.5 block text-[11px] text-amber-300/80">
+              {row.notes}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </form>
+  );
+}
+
+function PriceLine({ row }: { row: ShopRowItem }) {
+  if (row.coles_price == null && row.woolies_price == null) return null;
+  const c =
+    row.coles_price != null ? `$${row.coles_price.toFixed(2)}` : "—";
+  const w =
+    row.woolies_price != null ? `$${row.woolies_price.toFixed(2)}` : "—";
+  const winner =
+    row.cheaper_at === "coles"
+      ? "Coles wins"
+      : row.cheaper_at === "woolworths"
+        ? "Woolies wins"
+        : row.cheaper_at === "tie"
+          ? "Tie"
+          : "";
+  return (
+    <span className="block text-[11px] text-slate-500">
+      Coles {c} · Woolies {w}
+      {winner ? <span className="ml-2 text-amber-300">{winner}</span> : null}
+    </span>
+  );
+}

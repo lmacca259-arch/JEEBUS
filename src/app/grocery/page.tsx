@@ -1,28 +1,22 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { toggleGotIt, rebuildGrocery } from "@/app/actions/grocery";
+import { rebuildGrocery } from "@/app/actions/grocery";
 import {
   planningWeekMonday,
   nextPlanningWeekMonday,
 } from "@/lib/utils/rules";
 import { Header } from "@/components/brand/Header";
+import { ShopModeBanner } from "@/components/grocery/ShopModeBanner";
+import { ShopRow, type ShopRowItem } from "@/components/grocery/ShopRow";
 
 export const dynamic = "force-dynamic";
 
-type Item = {
-  id: string;
-  item: string;
-  quantity: string | null;
+type Item = ShopRowItem & {
   aisle: string | null;
-  for_recipes: string | null;
-  notes: string | null;
-  coles_price: number | null;
-  woolies_price: number | null;
   best_price: number | null;
-  cheaper_at: "coles" | "woolworths" | "tie" | "not_found" | null;
-  got_it: boolean;
-  is_standing: boolean;
 };
+
+type ShopMode = "coles" | "woolies" | null;
 
 const AISLE_ORDER = [
   "Produce",
@@ -48,14 +42,25 @@ const AISLE_EMOJI: Record<string, string> = {
   Other: "🛒",
 };
 
+function shopUrl(item: string, mode: ShopMode): string | null {
+  if (!mode) return null;
+  const q = encodeURIComponent(item);
+  if (mode === "coles") {
+    return `https://www.coles.com.au/search?q=${q}`;
+  }
+  return `https://www.woolworths.com.au/shop/search/products?searchTerm=${q}`;
+}
+
 export default async function GroceryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; rebuilt?: string }>;
+  searchParams: Promise<{ week?: string; rebuilt?: string; shop?: string }>;
 }) {
   const sp = await searchParams;
-  const slot = sp.week === "next" ? "next" : "current";
+  const slot: "current" | "next" = sp.week === "next" ? "next" : "current";
   const justRebuilt = sp.rebuilt === "1";
+  const shopMode: ShopMode =
+    sp.shop === "coles" ? "coles" : sp.shop === "woolies" ? "woolies" : null;
 
   const thisMonday = planningWeekMonday();
   const nextMonday = nextPlanningWeekMonday();
@@ -84,6 +89,28 @@ export default async function GroceryPage({
     ...[...byAisle.keys()].filter((a) => !AISLE_ORDER.includes(a)),
   ];
 
+  // Flat list in display order — drives the "next unticked" chain for Shop Mode.
+  const orderedItems: Item[] = [];
+  for (const aisle of orderedAisles) {
+    for (const it of byAisle.get(aisle)!) {
+      orderedItems.push(it);
+    }
+  }
+
+  // For each row id, the next unticked row's shop URL (or null if it's the last).
+  const nextShopUrlByRowId = new Map<string, string | null>();
+  for (let i = 0; i < orderedItems.length; i++) {
+    const remaining = orderedItems.slice(i + 1).find((r) => !r.got_it);
+    nextShopUrlByRowId.set(
+      orderedItems[i].id,
+      remaining ? shopUrl(remaining.item, shopMode) : null,
+    );
+  }
+
+  const unticked = orderedItems.filter((i) => !i.got_it);
+  const firstShopUrl =
+    unticked.length > 0 ? shopUrl(unticked[0].item, shopMode) : null;
+
   const colesTotal = items.reduce((s, i) => s + (i.coles_price ?? 0), 0);
   const wooliesTotal = items.reduce((s, i) => s + (i.woolies_price ?? 0), 0);
   const bestTotal = items.reduce((s, i) => s + (i.best_price ?? 0), 0);
@@ -108,16 +135,24 @@ export default async function GroceryPage({
         <WeekPill
           label="This week"
           dateLabel={fmt(thisMonday)}
-          href="/grocery?week=current"
+          href={`/grocery?week=current${shopMode ? `&shop=${shopMode}` : ""}`}
           active={slot === "current"}
         />
         <WeekPill
           label="Next week"
           dateLabel={fmt(nextMonday)}
-          href="/grocery?week=next"
+          href={`/grocery?week=next${shopMode ? `&shop=${shopMode}` : ""}`}
           active={slot === "next"}
         />
       </div>
+
+      {/* Shop Mode banner / starter */}
+      <ShopModeBanner
+        shopMode={shopMode}
+        weekParam={slot}
+        firstShopUrl={firstShopUrl}
+        remainingCount={unticked.length}
+      />
 
       {/* Rebuild button */}
       <form action={rebuildGrocery} className="mt-3">
@@ -184,65 +219,11 @@ export default async function GroceryPage({
             <ul className="mt-2 space-y-1.5">
               {byAisle.get(aisle)!.map((it) => (
                 <li key={it.id}>
-                  <form action={toggleGotIt}>
-                    <input type="hidden" name="id" value={it.id} />
-                    <input
-                      type="hidden"
-                      name="next"
-                      value={(!it.got_it).toString()}
-                    />
-                    <button
-                      type="submit"
-                      className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
-                        it.got_it
-                          ? "border-white/5 bg-white/[0.02] text-slate-500"
-                          : "border-white/10 bg-white/[0.04] hover:border-amber-500/50"
-                      }`}
-                    >
-                      <span
-                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
-                          it.got_it
-                            ? "border-emerald-500 bg-emerald-500 text-slate-950"
-                            : "border-slate-600"
-                        }`}
-                        aria-hidden
-                      >
-                        {it.got_it ? "✓" : ""}
-                      </span>
-                      <span className="flex-1">
-                        <span className="flex items-baseline gap-2">
-                          <span
-                            className={`text-sm ${
-                              it.got_it ? "line-through" : "text-slate-100"
-                            }`}
-                          >
-                            {it.item}
-                          </span>
-                          {it.is_standing ? (
-                            <span className="text-[10px] uppercase tracking-wider text-amber-300">
-                              standing
-                            </span>
-                          ) : null}
-                          {it.quantity ? (
-                            <span className="text-xs text-slate-500">
-                              {it.quantity}
-                            </span>
-                          ) : null}
-                        </span>
-                        {it.for_recipes ? (
-                          <span className="block text-[11px] text-slate-500">
-                            for {it.for_recipes}
-                          </span>
-                        ) : null}
-                        {priceLine(it)}
-                        {it.notes ? (
-                          <span className="mt-0.5 block text-[11px] text-amber-300/80">
-                            {it.notes}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  </form>
+                  <ShopRow
+                    row={it}
+                    shopMode={shopMode}
+                    nextShopUrl={nextShopUrlByRowId.get(it.id) ?? null}
+                  />
                 </li>
               ))}
             </ul>
@@ -278,26 +259,6 @@ function WeekPill({
       </span>
       <span className="block text-sm font-medium">{dateLabel}</span>
     </Link>
-  );
-}
-
-function priceLine(it: Item) {
-  if (it.coles_price == null && it.woolies_price == null) return null;
-  const c = it.coles_price != null ? `$${it.coles_price.toFixed(2)}` : "—";
-  const w = it.woolies_price != null ? `$${it.woolies_price.toFixed(2)}` : "—";
-  const winner =
-    it.cheaper_at === "coles"
-      ? "Coles wins"
-      : it.cheaper_at === "woolworths"
-        ? "Woolies wins"
-        : it.cheaper_at === "tie"
-          ? "Tie"
-          : "";
-  return (
-    <span className="block text-[11px] text-slate-500">
-      Coles {c} · Woolies {w}
-      {winner ? <span className="ml-2 text-amber-300">{winner}</span> : null}
-    </span>
   );
 }
 
