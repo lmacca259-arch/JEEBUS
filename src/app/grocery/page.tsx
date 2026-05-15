@@ -1,6 +1,10 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { toggleGotIt } from "@/app/actions/grocery";
-import { planningWeekMonday } from "@/lib/utils/rules";
+import { toggleGotIt, rebuildGrocery } from "@/app/actions/grocery";
+import {
+  planningWeekMonday,
+  nextPlanningWeekMonday,
+} from "@/lib/utils/rules";
 import { Header } from "@/components/brand/Header";
 
 export const dynamic = "force-dynamic";
@@ -44,10 +48,20 @@ const AISLE_EMOJI: Record<string, string> = {
   Other: "🛒",
 };
 
-export default async function GroceryPage() {
-  const supabase = await createClient();
-  const monday = planningWeekMonday();
+export default async function GroceryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string; rebuilt?: string }>;
+}) {
+  const sp = await searchParams;
+  const slot = sp.week === "next" ? "next" : "current";
+  const justRebuilt = sp.rebuilt === "1";
 
+  const thisMonday = planningWeekMonday();
+  const nextMonday = nextPlanningWeekMonday();
+  const monday = slot === "next" ? nextMonday : thisMonday;
+
+  const supabase = await createClient();
   const { data: rows } = await supabase
     .from("grocery_items")
     .select(
@@ -79,7 +93,47 @@ export default async function GroceryPage() {
 
   return (
     <main className="mx-auto max-w-md px-6 pt-10 pb-8">
-      <Header subtitle={`Week of ${fmt(monday)} · ${checkedCount} of ${totalCount} ticked`} />
+      <Header
+        subtitle={`Week of ${fmt(monday)} · ${checkedCount} of ${totalCount} ticked`}
+      />
+
+      {justRebuilt ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Rebuilt from meal plan
+        </div>
+      ) : null}
+
+      {/* Week toggle */}
+      <div className="mt-5 flex gap-2">
+        <WeekPill
+          label="This week"
+          dateLabel={fmt(thisMonday)}
+          href="/grocery?week=current"
+          active={slot === "current"}
+        />
+        <WeekPill
+          label="Next week"
+          dateLabel={fmt(nextMonday)}
+          href="/grocery?week=next"
+          active={slot === "next"}
+        />
+      </div>
+
+      {/* Rebuild button */}
+      <form action={rebuildGrocery} className="mt-3">
+        <input type="hidden" name="week" value={monday} />
+        <input type="hidden" name="slot" value={slot} />
+        <button
+          type="submit"
+          className="w-full rounded-2xl border border-amber-400/40 bg-amber-900/20 px-4 py-2.5 text-sm font-medium text-amber-200 transition hover:bg-amber-900/30"
+        >
+          🔄 Rebuild from meal plan
+        </button>
+        <p className="mt-1.5 text-[11px] text-slate-500">
+          Wipes this week&apos;s list and refills it from the planned meals
+          {totalCount > 0 ? ` (${totalCount} items will be replaced)` : ""}.
+        </p>
+      </form>
 
       {pricedCount > 0 ? (
         <section
@@ -93,11 +147,31 @@ export default async function GroceryPage() {
             Priced ({pricedCount} items)
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Total label="Coles" amount={colesTotal} winner={colesTotal <= wooliesTotal && colesTotal <= bestTotal} />
-            <Total label="Woolies" amount={wooliesTotal} winner={wooliesTotal < colesTotal && wooliesTotal <= bestTotal} />
-            <Total label="Best mix" amount={bestTotal} winner={bestTotal < colesTotal && bestTotal < wooliesTotal} />
+            <Total
+              label="Coles"
+              amount={colesTotal}
+              winner={colesTotal <= wooliesTotal && colesTotal <= bestTotal}
+            />
+            <Total
+              label="Woolies"
+              amount={wooliesTotal}
+              winner={wooliesTotal < colesTotal && wooliesTotal <= bestTotal}
+            />
+            <Total
+              label="Best mix"
+              amount={bestTotal}
+              winner={bestTotal < colesTotal && bestTotal < wooliesTotal}
+            />
           </div>
         </section>
+      ) : null}
+
+      {items.length === 0 ? (
+        <p className="mt-10 text-center text-sm text-slate-500">
+          No items for this week yet. Tap{" "}
+          <span className="text-amber-300">Rebuild from meal plan</span> to fill
+          it in.
+        </p>
       ) : null}
 
       <section className="mt-6 space-y-7">
@@ -179,6 +253,34 @@ export default async function GroceryPage() {
   );
 }
 
+function WeekPill({
+  label,
+  dateLabel,
+  href,
+  active,
+}: {
+  label: string;
+  dateLabel: string;
+  href: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`flex-1 rounded-2xl border px-3 py-2 text-center transition ${
+        active
+          ? "border-amber-400 bg-amber-500/20 text-amber-100"
+          : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20"
+      }`}
+    >
+      <span className="block text-[11px] uppercase tracking-[0.14em]">
+        {label}
+      </span>
+      <span className="block text-sm font-medium">{dateLabel}</span>
+    </Link>
+  );
+}
+
 function priceLine(it: Item) {
   if (it.coles_price == null && it.woolies_price == null) return null;
   const c = it.coles_price != null ? `$${it.coles_price.toFixed(2)}` : "—";
@@ -216,7 +318,9 @@ function Total({
           : "border-white/10 bg-black/20"
       }`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-[10px] uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p
         className={`mt-1 font-display text-xl font-bold ${
           winner ? "text-emerald-300" : "text-slate-100"
