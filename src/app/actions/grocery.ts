@@ -120,6 +120,17 @@ export async function rebuildGrocery(formData: FormData) {
     got_it: false,
     notes: "Afternoon snack",
   });
+  inserts.push({
+    household_id: householdId,
+    week_of: weekMonday,
+    item: "Long life milk",
+    quantity: "1 L",
+    aisle: "Pantry",
+    for_recipes: null,
+    is_standing: true,
+    got_it: false,
+    notes: "Cooking + Alex",
+  });
   if (isHannahHome) {
     inserts.push({
       household_id: householdId,
