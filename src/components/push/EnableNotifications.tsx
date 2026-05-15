@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 type Props = { memberId: string; memberName: string };
 
 type Status =
+  | "checking"
   | "idle"
   | "unsupported"
   | "denied"
@@ -15,7 +16,10 @@ type Status =
 const DISMISS_KEY = "hyetas_push_banner_dismissed";
 
 export function EnableNotifications({ memberId, memberName }: Props) {
-  const [status, setStatus] = useState<Status>("idle");
+  // Start in "checking" — we render nothing until we know whether the user
+  // actually needs to be prompted. Prevents the banner from flashing on first
+  // paint for people who already enabled.
+  const [status, setStatus] = useState<Status>("checking");
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -33,32 +37,51 @@ export function EnableNotifications({ memberId, memberName }: Props) {
       setStatus("denied");
       return;
     }
-    navigator.serviceWorker.getRegistration().then(async (reg) => {
-      if (!reg) return;
-      const existing = await reg.pushManager.getSubscription();
-      if (existing && Notification.permission === "granted") {
-        // Self-heal: re-POST the subscription to the server every page load
-        // so a previously-failed save catches up. UPSERT on the server keeps
-        // this idempotent.
-        try {
-          await fetch("/api/push/subscribe", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              member_id: memberId,
-              subscription: existing.toJSON(),
-              user_agent: navigator.userAgent,
-            }),
-          });
-        } catch {
-          /* silent — banner will still show as enabled */
+
+    let cancelled = false;
+    navigator.serviceWorker
+      .getRegistration()
+      .then(async (reg) => {
+        if (cancelled) return;
+        if (!reg) {
+          setStatus("idle");
+          return;
         }
-        setStatus("enabled");
-      }
-    });
+        const existing = await reg.pushManager.getSubscription();
+        if (cancelled) return;
+        if (existing && Notification.permission === "granted") {
+          // Self-heal: re-POST the subscription to the server every page load
+          // so a previously-failed save catches up. UPSERT on the server keeps
+          // this idempotent.
+          try {
+            await fetch("/api/push/subscribe", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                member_id: memberId,
+                subscription: existing.toJSON(),
+                user_agent: navigator.userAgent,
+              }),
+            });
+          } catch {
+            /* silent — banner will still show as enabled */
+          }
+          setStatus("enabled");
+        } else {
+          setStatus("idle");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("idle");
+      });
+
     if (window.localStorage.getItem(DISMISS_KEY) === memberId) {
       setDismissed(true);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [memberId]);
 
   async function enable() {
@@ -116,8 +139,14 @@ export function EnableNotifications({ memberId, memberName }: Props) {
     }
   }
 
-  // Hide entirely when enabled, unsupported, or dismissed.
-  if (status === "enabled" || status === "unsupported" || dismissed) {
+  // Hide entirely while we're still figuring out subscription state, or when
+  // the user is already enabled, on an unsupported device, or has dismissed.
+  if (
+    status === "checking" ||
+    status === "enabled" ||
+    status === "unsupported" ||
+    dismissed
+  ) {
     return null;
   }
 
