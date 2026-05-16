@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { toggleGotIt } from "@/app/actions/grocery";
 
 export type ShopRowItem = {
@@ -13,15 +14,17 @@ export type ShopRowItem = {
   cheaper_at: "coles" | "woolworths" | "tie" | "not_found" | null;
   got_it: boolean;
   is_standing: boolean;
+  is_manual: boolean;
 };
 
 type Props = {
   row: ShopRowItem;
   shopMode: "coles" | "woolies" | null;
   ownShopUrl: string | null;
+  slot: "current" | "next";
 };
 
-export function ShopRow({ row, shopMode, ownShopUrl }: Props) {
+export function ShopRow({ row, shopMode, ownShopUrl, slot }: Props) {
   // Main row tap: open THIS item on the shop tab AND tick it.
   // Only opens when ticking (not when un-ticking an already-done row).
   function openAndTick() {
@@ -31,6 +34,7 @@ export function ShopRow({ row, shopMode, ownShopUrl }: Props) {
   }
 
   const showSkip = shopMode !== null && !row.got_it;
+  const showEdit = !row.got_it;
 
   return (
     <form action={toggleGotIt} className="flex items-stretch gap-1.5">
@@ -69,6 +73,11 @@ export function ShopRow({ row, shopMode, ownShopUrl }: Props) {
                 standing
               </span>
             ) : null}
+            {row.is_manual && !row.is_standing ? (
+              <span className="text-[10px] uppercase tracking-wider text-violet-300">
+                yours
+              </span>
+            ) : null}
             {row.quantity ? (
               <span className="text-xs text-slate-500">{row.quantity}</span>
             ) : null}
@@ -86,6 +95,16 @@ export function ShopRow({ row, shopMode, ownShopUrl }: Props) {
           ) : null}
         </span>
       </button>
+      {showEdit ? (
+        <Link
+          href={`/grocery/edit/${row.id}?week=${slot}`}
+          aria-label={`Edit ${row.item}`}
+          title="Edit"
+          className="flex shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-3 text-base text-slate-400 transition hover:border-amber-500/50 hover:text-amber-300"
+        >
+          ✏
+        </Link>
+      ) : null}
       {showSkip ? (
         <button
           type="submit"

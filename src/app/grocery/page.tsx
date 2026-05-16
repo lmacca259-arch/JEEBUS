@@ -55,11 +55,21 @@ function shopUrl(item: string, mode: ShopMode): string | null {
 export default async function GroceryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; rebuilt?: string; shop?: string }>;
+  searchParams: Promise<{
+    week?: string;
+    rebuilt?: string;
+    shop?: string;
+    added?: string;
+    saved?: string;
+    removed?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const slot: "current" | "next" = sp.week === "next" ? "next" : "current";
   const justRebuilt = sp.rebuilt === "1";
+  const justAdded = sp.added === "1";
+  const justSaved = sp.saved === "1";
+  const justRemoved = sp.removed === "1";
   const shopMode: ShopMode =
     sp.shop === "coles" ? "coles" : sp.shop === "woolies" ? "woolies" : null;
 
@@ -71,7 +81,7 @@ export default async function GroceryPage({
   const { data: rows } = await supabase
     .from("grocery_items")
     .select(
-      "id, item, quantity, aisle, for_recipes, notes, coles_price, woolies_price, best_price, cheaper_at, got_it, is_standing",
+      "id, item, quantity, aisle, for_recipes, notes, coles_price, woolies_price, best_price, cheaper_at, got_it, is_standing, is_manual",
     )
     .eq("week_of", monday)
     .order("aisle")
@@ -126,6 +136,21 @@ export default async function GroceryPage({
           ✓ Rebuilt from meal plan
         </div>
       ) : null}
+      {justAdded ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Item added
+        </div>
+      ) : null}
+      {justSaved ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Saved
+        </div>
+      ) : null}
+      {justRemoved ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Removed
+        </div>
+      ) : null}
 
       {/* Week toggle */}
       <div className="mt-5 flex gap-2">
@@ -142,6 +167,14 @@ export default async function GroceryPage({
           active={slot === "next"}
         />
       </div>
+
+      {/* Add a one-off item */}
+      <Link
+        href={`/grocery/new?week=${slot}`}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-400/40 bg-violet-900/15 px-4 py-2.5 text-sm font-medium text-violet-200 transition hover:bg-violet-900/30"
+      >
+        + Add item to {slot === "next" ? "next" : "this"} week
+      </Link>
 
       {/* Shop Mode banner / starter */}
       <ShopModeBanner
@@ -223,6 +256,7 @@ export default async function GroceryPage({
                     row={it}
                     shopMode={shopMode}
                     ownShopUrl={ownShopUrlByRowId.get(it.id) ?? null}
+                    slot={slot}
                   />
                 </li>
               ))}

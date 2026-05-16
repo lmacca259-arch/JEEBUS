@@ -42,15 +42,20 @@ type GroceryInsert = {
   aisle: string | null;
   for_recipes: string | null;
   is_standing: boolean;
+  is_manual: boolean;
   got_it: boolean;
   notes: string | null;
 };
 
 /**
  * Rebuild the grocery list for a given week from the meal plan.
- * - Wipes ALL existing rows for that week (standing + hand-built).
- * - Inserts consolidated rows from `consolidate_grocery_for_week`.
- * - Adds every entry from `standing_items` (respecting home_only flag).
+ * - Wipes existing rows for the week where `is_manual = FALSE`.
+ *   Rows the user added or edited (`is_manual = TRUE`) survive.
+ * - Inserts consolidated rows from `consolidate_grocery_for_week`, skipping
+ *   any whose name (case-insensitive) matches a surviving manual row so we
+ *   don't end up with a duplicate "carrots" / "manual carrots".
+ * - Adds every entry from `standing_items` (respecting home_only flag),
+ *   with the same manual-name skip rule.
  */
 export async function rebuildGrocery(formData: FormData) {
   const weekMonday = String(formData.get("week") ?? "");
@@ -68,7 +73,21 @@ export async function rebuildGrocery(formData: FormData) {
   if (!hh) return;
   const householdId = hh.id as string;
 
-  // 2. Call the consolidator.
+  // 2. Read existing manual rows so we can skip duplicates on insert.
+  const { data: manualRows } = await supabase
+    .from("grocery_items")
+    .select("item")
+    .eq("household_id", householdId)
+    .eq("week_of", weekMonday)
+    .eq("is_manual", true);
+
+  const manualNames = new Set(
+    ((manualRows ?? []) as { item: string }[]).map((r) =>
+      r.item.toLowerCase().trim(),
+    ),
+  );
+
+  // 3. Call the consolidator.
   const { data: rows, error } = await supabase.rpc(
     "consolidate_grocery_for_week",
     {
@@ -84,27 +103,32 @@ export async function rebuildGrocery(formData: FormData) {
   const consolidated = (rows ?? []) as ConsolidatedRow[];
   const isHannahHome = consolidated[0]?.is_hannah_home ?? false;
 
-  // 3. Wipe the week (standing + non-standing both).
+  // 4. Wipe non-manual rows only.
   await supabase
     .from("grocery_items")
     .delete()
     .eq("household_id", householdId)
-    .eq("week_of", weekMonday);
+    .eq("week_of", weekMonday)
+    .eq("is_manual", false);
 
-  // 4. Build the insert payload from consolidator rows.
-  const inserts: GroceryInsert[] = consolidated.map((r) => ({
-    household_id: householdId,
-    week_of: weekMonday,
-    item: r.name,
-    quantity: r.display_quantity,
-    aisle: r.aisle,
-    for_recipes: r.for_recipes,
-    is_standing: false,
-    got_it: false,
-    notes: null,
-  }));
+  // 5. Build the insert payload from consolidator rows, skipping any whose
+  //    name collides with a manual row.
+  const inserts: GroceryInsert[] = consolidated
+    .filter((r) => !manualNames.has(r.name.toLowerCase().trim()))
+    .map((r) => ({
+      household_id: householdId,
+      week_of: weekMonday,
+      item: r.name,
+      quantity: r.display_quantity,
+      aisle: r.aisle,
+      for_recipes: r.for_recipes,
+      is_standing: false,
+      is_manual: false,
+      got_it: false,
+      notes: null,
+    }));
 
-  // 5. Standing items from the user-managed table.
+  // 6. Standing items from the user-managed table, same skip rule.
   const { data: standingRows } = await supabase
     .from("standing_items")
     .select("item, quantity, aisle, notes, home_only")
@@ -113,6 +137,7 @@ export async function rebuildGrocery(formData: FormData) {
 
   for (const s of (standingRows ?? []) as StandingItemRow[]) {
     if (s.home_only && !isHannahHome) continue;
+    if (manualNames.has(s.item.toLowerCase().trim())) continue;
     inserts.push({
       household_id: householdId,
       week_of: weekMonday,
@@ -121,16 +146,94 @@ export async function rebuildGrocery(formData: FormData) {
       aisle: s.aisle,
       for_recipes: null,
       is_standing: true,
+      is_manual: false,
       got_it: false,
       notes: s.notes,
     });
   }
 
-  await supabase.from("grocery_items").insert(inserts);
+  if (inserts.length > 0) {
+    await supabase.from("grocery_items").insert(inserts);
+  }
 
   revalidatePath("/grocery");
   redirect(`/grocery?week=${slot}&rebuilt=1`);
 }
+
+// -- Manual grocery item CRUD --------------------------------------------------
+
+export async function addGroceryItem(formData: FormData) {
+  const weekMonday = String(formData.get("week") ?? "");
+  const slot = String(formData.get("slot") ?? "current");
+  const item = String(formData.get("item") ?? "").trim();
+  const quantity = String(formData.get("quantity") ?? "").trim() || null;
+  const aisle = String(formData.get("aisle") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  if (!item || !weekMonday) return;
+
+  const supabase = await createClient();
+  const { data: hh } = await supabase
+    .from("households")
+    .select("id")
+    .limit(1)
+    .single();
+  if (!hh) return;
+
+  await supabase.from("grocery_items").insert({
+    household_id: hh.id,
+    week_of: weekMonday,
+    item,
+    quantity,
+    aisle,
+    for_recipes: null,
+    is_standing: false,
+    is_manual: true,
+    got_it: false,
+    notes,
+  });
+
+  revalidatePath("/grocery");
+  redirect(`/grocery?week=${slot}&added=1`);
+}
+
+export async function updateGroceryItem(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const slot = String(formData.get("slot") ?? "current");
+  const item = String(formData.get("item") ?? "").trim();
+  const quantity = String(formData.get("quantity") ?? "").trim() || null;
+  const aisle = String(formData.get("aisle") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  if (!id || !item) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("grocery_items")
+    .update({
+      item,
+      quantity,
+      aisle,
+      notes,
+      is_manual: true,
+    })
+    .eq("id", id);
+
+  revalidatePath("/grocery");
+  redirect(`/grocery?week=${slot}&saved=1`);
+}
+
+export async function removeGroceryItem(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const slot = String(formData.get("slot") ?? "current");
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("grocery_items").delete().eq("id", id);
+
+  revalidatePath("/grocery");
+  redirect(`/grocery?week=${slot}&removed=1`);
+}
+
+// -- Standing items (unchanged) -----------------------------------------------
 
 export async function addStandingItem(formData: FormData) {
   const item = String(formData.get("item") ?? "").trim();
