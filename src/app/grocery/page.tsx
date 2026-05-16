@@ -62,6 +62,8 @@ export default async function GroceryPage({
     added?: string;
     saved?: string;
     removed?: string;
+    standing_saved?: string;
+    standing_removed?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -70,6 +72,8 @@ export default async function GroceryPage({
   const justAdded = sp.added === "1";
   const justSaved = sp.saved === "1";
   const justRemoved = sp.removed === "1";
+  const justStandingSaved = sp.standing_saved === "1";
+  const justStandingRemoved = sp.standing_removed === "1";
   const shopMode: ShopMode =
     sp.shop === "coles" ? "coles" : sp.shop === "woolies" ? "woolies" : null;
 
@@ -149,6 +153,16 @@ export default async function GroceryPage({
       {justRemoved ? (
         <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
           ✓ Removed
+        </div>
+      ) : null}
+      {justStandingSaved ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Standing item saved
+        </div>
+      ) : null}
+      {justStandingRemoved ? (
+        <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-900/20 px-4 py-2.5 text-sm text-emerald-200">
+          ✓ Standing item removed
         </div>
       ) : null}
 

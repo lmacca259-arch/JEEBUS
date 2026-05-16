@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   addStandingItem,
@@ -73,6 +74,14 @@ export async function StandingItemsPanel() {
                   </span>
                 ) : null}
               </span>
+              <Link
+                href={`/grocery/standing/${it.id}/edit`}
+                aria-label={`Edit ${it.item}`}
+                title="Edit"
+                className="rounded-md px-2 py-1 text-xs text-slate-400 transition hover:bg-amber-900/30 hover:text-amber-300"
+              >
+                ✏
+              </Link>
               <form action={removeStandingItem}>
                 <input type="hidden" name="id" value={it.id} />
                 <button

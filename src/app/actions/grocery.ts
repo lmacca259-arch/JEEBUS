@@ -263,6 +263,31 @@ export async function addStandingItem(formData: FormData) {
   revalidatePath("/grocery");
 }
 
+export async function updateStandingItem(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const item = String(formData.get("item") ?? "").trim();
+  const quantity = String(formData.get("quantity") ?? "").trim() || null;
+  const aisle = String(formData.get("aisle") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const homeOnly = formData.get("home_only") === "on";
+  if (!id || !item) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("standing_items")
+    .update({
+      item,
+      quantity,
+      aisle,
+      notes,
+      home_only: homeOnly,
+    })
+    .eq("id", id);
+
+  revalidatePath("/grocery");
+  redirect(`/grocery?standing_saved=1`);
+}
+
 export async function removeStandingItem(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
@@ -271,4 +296,5 @@ export async function removeStandingItem(formData: FormData) {
   await supabase.from("standing_items").delete().eq("id", id);
 
   revalidatePath("/grocery");
+  redirect(`/grocery?standing_removed=1`);
 }
